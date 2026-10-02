@@ -5,6 +5,8 @@
   "scripts": {
     "publisher": "node src/publisher.ts",
     "demo": "node src/demo.ts",
+    "keeper": "node src/keeper.ts",
+    "mm": "node src/mm.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.ts"
   },

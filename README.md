@@ -104,6 +104,20 @@ Live H100 weeks on testnet (find them onchain with `SeriesFactory.allSeries` and
 | 2026-W43 | Oct 19 to Oct 26 | `rrH100W43L` | [`0x027d…2f5F`](https://testnet.monadvision.com/address/0x027d0B4A4e3B07b74002eDc7A5F7262068432f5F) |
 | 2026-W44 | Oct 26 to Nov 2 | `rrH100W44L` | [`0xAdc2…40B0`](https://testnet.monadvision.com/address/0xAdc2970ba0F47fA73Df99Ee825Ec7e1Cb36140B0) |
 
+## Market maker (test liquidity)
+
+A team-run maker keeps every live weekly book quoted, so the hedge and buy screens have liquidity to trade against. Its wallet is [`0xfbF0…6232`](https://testnet.monadvision.com/address/0xfbF0102a17Ed91E55AA28bdbF7b69a41c9546232).
+- **Fair value** of a LONG token is `(clamp(expected average, floor, cap) − floor) × epochs`.
+- The **expected average** blends the prices already printed in the window with the trailing one-week mean for the hours still to come.
+- **Quotes:** two levels per side, ±1.5% (5 GPU-weeks) and ±4% (10 GPU-weeks), as post-only limit orders. Each book is updated with one Kuru `batchUpdate`.
+- **When it requotes:** only when fair value moves more than 1.5% or an order fills. It stops quoting an hour before a window ends.
+- **Funding:** bids use rrUSD and asks use LONG minted from the series, both held in Kuru's margin account. The maker only places resting orders and never takes liquidity, so it can't trade with itself.
+
+```sh
+bots/scripts/mm.sh start               # also: status, logs, stop, cancel (pull every quote)
+bots/scripts/mm-fork.sh                # end-to-end on a local fork: quote, trader fills via HedgeRouter, requote
+```
+
 ## Chainlink CRE publisher
 
 Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) workflow (`cre/price-publisher`). Each hour it:

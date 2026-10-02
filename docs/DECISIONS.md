@@ -181,3 +181,20 @@ A log of the important design decisions behind Rackrate and why they were made. 
 **Consequences:**
 - The first live week (2026-W41) ends Oct 12 00:00 UTC, so a real weekly series settles before the Oct 13 deadline.
 - If demo series share a feed and start epoch, the latest one wins in `seriesByStart`, so an older duplicate can't get a book. Fresh demo feeds per session (006) avoid this.
+
+### 013 — Market maker prices off the oracle and only requotes on real changes
+**Date:** 2026-10-02
+**Decision:**
+- The test market maker values LONG from onchain oracle data alone. The window's printed prices are blended with the trailing one-week mean index price for the hours still to come.
+- It quotes post-only ladders, funded from Kuru's margin account. Asks are backed by LONG it mints from the series.
+- It replaces a book's ladder in one `batchUpdate`, and only when fair value moves more than 1.5% or an order fills. There is no timed refresh.
+
+**Why:**
+- Monad bills the gas limit. A ladder update bills ~0.75M gas (~0.075 MON) on testnet.
+- In simulation, a 24h reference triggered ~4.9 requotes per book per day because of the daily price cycle. The one-week mean triggers ~1.1, and it is also the better estimate of a weekly average.
+- Post-only orders and no taking mean the maker can never trade with itself, as the hackathon's no-fake-volume rule requires.
+- Minting means every ask is fully collateralized LONG, not borrowed inventory.
+
+**Consequences:**
+- With 4 books, running cost is roughly 0.3–0.4 MON per day plus fills.
+- The maker holds the SHORT side of everything it mints. That is fine for test liquidity, but a real maker would hedge it or sell it on a SHORT book.
