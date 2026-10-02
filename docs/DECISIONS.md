@@ -120,3 +120,24 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - Running cost is roughly halved.
 - Staggering means C normally lands last, so its estimate already covers finalizing the epoch.
 - The rare race costs one reverted transaction and a retry.
+
+### 010 — Kuru integration: wallet-direct market orders through a stateless router
+**Date:** 2026-10-02
+**Decision:**
+- Each series' LONG token gets its own Kuru LONG/rrUSD market. Parameters:
+  - price precision 1e4 with a $0.01 tick;
+  - size precision = 10^LONG decimals (1e6, so size units equal token units);
+  - minimum size 0.01 GPU-window;
+  - zero fees on testnet.
+- `HedgeRouter` executes multi-week hedges and purchases in one transaction using Kuru market orders with `_isMargin = false` and fill-or-kill, plus caller-set minimums.
+- Makers (the market-maker bot) quote with limit orders funded from Kuru's margin account.
+
+**Why:**
+- Probing Kuru's real testnet contracts on a fork showed that wallet-direct market orders settle straight with the caller. A stateless, ownerless router can therefore trade for the user without ever holding funds or using Kuru's margin system.
+- Fill-or-kill makes a ladder all-or-nothing.
+- The probe also showed that Kuru takes market-buy budgets in price-precision units, not raw token units. The router converts this and rejects inexact amounts rather than silently rounding.
+
+**Consequences:**
+- Kuru's SDK repository has no license, so its ABI files are not vendored. A minimal interface declares only the functions Rackrate calls.
+- Fork tests run the full lifecycle on Kuru's real contracts: a 3-week hedge ladder, a buy ladder, and settlement with claims. The revenue-lock property is fuzz-tested.
+- Kuru's own UI and WebSocket API are mainnet-only, so Rackrate builds its own trading screens.

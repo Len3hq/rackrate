@@ -26,6 +26,6 @@ monad_testnet = "${MONAD_RPC_URL}"
 monad_testnet = { key = "${MONADSCAN_API_KEY}", chain = 10143 }
 
 [fmt]
-# Deployed, source-verified contracts are kept byte-for-byte as verified (exact match on MonadVision).
-# Remove from this list and format at the next redeploy.
-ignore = ["src/RackOracle.sol", "src/SeriesFactory.sol"]
+# All of src/ is part of deployed, source-verified contracts (exact match on MonadVision). Formatting changes
+# the metadata hash, so sources stay byte-for-byte as verified. Format them only together with a redeploy.
+ignore = ["src/**/*.sol"]

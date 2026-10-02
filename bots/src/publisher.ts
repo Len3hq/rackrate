@@ -81,6 +81,7 @@ interface OnchainFeed {
   exists: boolean;
   isDemo: boolean;
   epochLength: number;
+  finalizeDelay: number;
   genesis: bigint;
   nextEpoch: bigint;
 }
@@ -167,6 +168,9 @@ async function tickFeed(feed: FeedState, now: bigint): Promise<void> {
   if (f.isDemo) await scanScenarios(feed);
   const first = cur - 1n > f.nextEpoch ? cur - 1n : f.nextEpoch;
   for (let e = first; e <= cur; e++) {
+    // Backfill a past epoch only while it can still count: once its finalize delay has passed, anyone may
+    // finalize it at any moment, so a late submission would likely be wasted gas.
+    if (e < cur && now >= genesis + (e + 1n) * len + BigInt(f.finalizeDelay)) continue;
     if (await read<boolean>("hasSubmitted", [feed.id, e, me])) continue;
     let price = publisherPrice(seedFor, params, e, me, scenarioKindAt(feed.scenarios, e));
     if (values.rogue) price *= ROGUE_MULT;
@@ -222,7 +226,12 @@ if (values.once) {
 } else {
   const intervalMs = Number(values.interval) * 1000;
   for (;;) {
-    await tick();
+    try {
+      await tick();
+    } catch (err) {
+      // Network or RPC failures (timeouts, dropped connections) must never stop the publisher.
+      log(scope, `tick failed, retrying next interval: ${errorMessage(err)}`);
+    }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 }

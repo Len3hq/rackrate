@@ -27,7 +27,9 @@ start() {
     # already covers finalizing the epoch, and the two never race to finalize.
     if [ "$p" = C ]; then cmd+=(--skip-finalize --delay 20); fi
     if command -v caffeinate >/dev/null; then cmd=(caffeinate -i "${cmd[@]}"); fi
-    nohup "${cmd[@]}" >>"$RUN/pub$p.log" 2>&1 &
+    # Supervisor loop: restart the bot if it ever exits (e.g. an unexpected crash), after a short pause.
+    nohup bash -c 'while true; do "$@"; echo "$(date -u +%FT%TZ) [supervisor] publisher exited ($?), restarting in 15s"; sleep 15; done' \
+      _ "${cmd[@]}" >>"$RUN/pub$p.log" 2>&1 &
     echo $! >"$RUN/pub$p.pid"
     echo "publisher $p started (pid $!, feeds $feeds), log: bots/$RUN/pub$p.log"
   done
@@ -36,6 +38,7 @@ start() {
 stop() {
   for p in B C; do
     if [ -f "$RUN/pub$p.pid" ]; then
+      pkill -P "$(cat "$RUN/pub$p.pid")" 2>/dev/null || true # the bot under the supervisor
       kill "$(cat "$RUN/pub$p.pid")" 2>/dev/null && echo "publisher $p stopped" || echo "publisher $p not running"
       rm -f "$RUN/pub$p.pid"
     fi

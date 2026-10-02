@@ -34,3 +34,4 @@ indexer/.envio/
 # Bots
 bots/.demo-session.json
 bots/.run/
+contracts/broadcast/**/*.recovery.lock

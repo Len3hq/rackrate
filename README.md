@@ -22,12 +22,16 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 
    The two payouts always add up to the deposited collateral.
 4. **Trading.** LONG trades on a Kuru order book against the test dollar. Its price implies the market's forward rate for that week.
+5. **One-transaction hedges.** `HedgeRouter` turns a multi-week hedge into one atomic transaction on Kuru:
+   - **GPU owner (`hedge`):** mints each week, keeps SHORT and sells LONG, which locks in revenue.
+   - **AI startup (`buyLongs`):** buys LONG for each week, which locks in cost.
+   - Every leg is fill-or-kill with a minimum price, so the whole ladder executes or nothing does.
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `contracts/` | Solidity (Foundry): test dollar, oracle, series factory, hedge router |
+| `contracts/` | Solidity (Foundry): test dollar, oracle, series factory, hedge router, Kuru interfaces |
 | `cre/` | Chainlink CRE workflow (oracle publisher) |
 | `bots/` | Publisher bots, demo ticker, keeper, market maker |
 | `indexer/` | Envio HyperIndex |
@@ -96,6 +100,7 @@ Each publisher commits a hash of its per-period seed onchain **before** the seed
 | rrUSD (test dollar) | [`0x7C3358F8833B2a2113636b5e2707dB8354eD5DfE`](https://testnet.monadvision.com/address/0x7C3358F8833B2a2113636b5e2707dB8354eD5DfE) |
 | RackOracle | [`0x495231539161D0e8e3f9b509e70Cc5aB2b4120dc`](https://testnet.monadvision.com/address/0x495231539161D0e8e3f9b509e70Cc5aB2b4120dc) |
 | SeriesFactory | [`0x750d1B8550704a8452C8db17Ba53352C8c28aDF4`](https://testnet.monadvision.com/address/0x750d1B8550704a8452C8db17Ba53352C8c28aDF4) |
+| HedgeRouter | [`0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C`](https://testnet.monadvision.com/address/0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C) |
 
 Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B200_DEMO` (30-second demo epochs). The feed ID is `keccak256(name)`. The full deployment record is in [`contracts/deployments/10143.json`](contracts/deployments/10143.json).
 
@@ -110,6 +115,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) (MIT)
 - [forge-std](https://github.com/foundry-rs/forge-std) (MIT/Apache-2.0)
 - [viem](https://github.com/wevm/viem) (MIT)
+- [Kuru](https://docs.kuru.io) onchain order book (testnet). `contracts/src/interfaces/IKuru.sol` declares only the function signatures Rackrate calls, taken from Kuru's public documentation.
 
 ## AI tool disclosure
 
