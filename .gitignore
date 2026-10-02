@@ -30,3 +30,6 @@ indexer/.envio/
 .DS_Store
 .idea/
 .vscode/
+
+# Bots
+bots/.demo-session.json

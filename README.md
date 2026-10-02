@@ -32,7 +32,7 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 | `bots/` | Publisher bots, demo ticker, keeper, market maker |
 | `indexer/` | Envio HyperIndex |
 | `app/` | Next.js frontend (Privy) |
-| `docs/` | Architecture, oracle and settlement specs |
+| `docs/` | Architecture notes and the [decisions log](docs/DECISIONS.md) |
 
 ## Quick start (contracts)
 
@@ -47,6 +47,33 @@ forge test
 # End-to-end smoke test against the deployed testnet contracts (local fork, nothing is broadcast)
 RUN_FORK_TESTS=true MONAD_RPC_URL=https://testnet-rpc.monad.xyz forge test --match-path "test/fork/*"
 ```
+
+## Oracle publishers (bots)
+
+Requires Node 22.6+ and pnpm. Run `forge build` in `contracts/` first (the bots read ABIs from its output).
+
+```sh
+pnpm install
+pnpm -C bots test          # price-model unit tests
+pnpm -C bots typecheck
+
+# Publish prices to the hourly feeds (keys and PRICE_MASTER_SECRET from contracts/.env)
+pnpm -C bots publisher --key PUBLISHER_B_PRIVATE_KEY --feeds H100,H200,B200
+
+# Demo session: a fresh 30-second feed and a series that settles in ~10 minutes
+pnpm -C bots demo start --gpu H100
+pnpm -C bots demo scenario crash    # or spike / reset
+pnpm -C bots demo status
+pnpm -C bots demo settle
+
+# Independent audit: re-derive every submitted price from the seeds revealed onchain
+pnpm -C bots exec node src/audit.ts --feed <feed name> --from-block <block>
+
+# Full end-to-end test on a local fork (nothing is broadcast)
+bots/scripts/e2e-fork.sh
+```
+
+Each publisher commits a hash of its per-period seed onchain **before** the seed is used, and reveals the seed afterwards. Anyone can then re-derive every price it submitted.
 
 ## Network
 
@@ -71,13 +98,14 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 ## Honest limits (testnet)
 
 - The price index is **simulated**, not real market data.
-- Two of the three oracle publishers are operated by the team.
+- All oracle publishers (two bots and a Chainlink CRE workflow) are operated by the team. On mainnet, the publishers would be GPU hosts signing their own rental rates.
 - Liquidity on the order books comes from a team-run test market maker. **It is not organic volume.**
 
 ## Attribution
 
 - [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) (MIT)
 - [forge-std](https://github.com/foundry-rs/forge-std) (MIT/Apache-2.0)
+- [viem](https://github.com/wevm/viem) (MIT)
 
 ## AI tool disclosure
 
