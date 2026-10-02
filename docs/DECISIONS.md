@@ -141,3 +141,26 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - Kuru's SDK repository has no license, so its ABI files are not vendored. A minimal interface declares only the functions Rackrate calls.
 - Fork tests run the full lifecycle on Kuru's real contracts: a 3-week hedge ladder, a buy ladder, and settlement with claims. The revenue-lock property is fuzz-tested.
 - Kuru's own UI and WebSocket API are mainnet-only, so Rackrate builds its own trading screens.
+
+### 011 — Chainlink CRE as publisher A, running in simulation mode until deploy access
+**Date:** 2026-10-02
+**Decision:**
+- A CRE workflow (TypeScript) computes the hourly price with the same `priceModel.ts` the bots use, holding the master seed in CRE Secrets.
+- It reads chain state through two Multicall3 calls and delivers one signed report per run to `CreReceiver`.
+- `CreReceiver` is the allowlisted publisher. It accepts reports only from the configured forwarder (optionally also checking the workflow owner) and executes each action in the batch in isolation.
+- Until Chainlink grants deploy access, the workflow runs hourly as `cre workflow simulate --broadcast` through Chainlink's MockKeystoneForwarder, paid by a dedicated simulator wallet.
+
+**Why:**
+- A third, independent publisher makes the median resistant to one bad price.
+- CRE is the orchestration layer the Chainlink bounty asks for.
+- Sharing the model file keeps all three publishers on identical math.
+- Batched reads stay within CRE's limit of 15 reads per execution.
+- Isolated actions stop one race (an epoch already finalized by another publisher) from discarding the rest of the report. The first live run hit exactly this case.
+- Using a dedicated simulator wallet avoids nonce clashes with the bots.
+
+**Consequences:**
+- The forwarder is owner-updatable, so moving to Chainlink's network is a workflow deploy plus `setForwarder`, with no contract redeploy.
+- Gas allowances per action were measured from a transaction trace (~282k used vs 650k billed on the first run) and set with a margin. A normal hourly run bills about 260k gas.
+- CRE only publishes to hourly feeds; demo feeds stay with the bots.
+- Simulation runs on the team's machine, so until deployment this publisher is not decentralized. The README states this.
+- In a deployed, non-confidential workflow, node operators could see the master seed. That's acceptable for a simulated testnet index, but a real-data mainnet version should source prices differently.

@@ -5,6 +5,8 @@
 *.pem
 *.key
 secrets.yaml
+# CRE's secrets.yaml only maps secret names to env var names (no values) and is required by the workflow
+!cre/secrets.yaml
 
 # Node
 node_modules/

@@ -1,0 +1,17 @@
+{
+  "name": "@rackrate/cre-price-publisher",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chainlink/cre-sdk": "^1.22.0",
+    "viem": "^2.40.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

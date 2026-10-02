@@ -32,7 +32,7 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 | Path | Contents |
 |---|---|
 | `contracts/` | Solidity (Foundry): test dollar, oracle, series factory, hedge router, Kuru interfaces |
-| `cre/` | Chainlink CRE workflow (oracle publisher) |
+| `cre/` | Chainlink CRE workflow (oracle publisher A) and its hourly runner |
 | `bots/` | Publisher bots, demo ticker, keeper, market maker |
 | `indexer/` | Envio HyperIndex |
 | `app/` | Next.js frontend (Privy) |
@@ -83,6 +83,25 @@ bots/scripts/e2e-fork.sh
 
 Each publisher commits a hash of its per-period seed onchain **before** the seed is used, and reveals the seed afterwards. Anyone can then re-derive every price it submitted.
 
+## Chainlink CRE publisher
+
+Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) workflow (`cre/price-publisher`). Each hour it:
+1. reads the feed state through Multicall3;
+2. computes the price with the **same model file** the bots use, with the secret master seed held in CRE Secrets;
+3. sends a signed report through Chainlink's forwarder to `CreReceiver`.
+
+`CreReceiver` is the allowlisted publisher address. It executes the report's batch of oracle actions (commit seeds, submit price, reveal seeds), each in isolation.
+
+```sh
+cd cre/price-publisher && bun install
+cre/scripts/run.sh once      # one simulation with real onchain writes (cre workflow simulate --broadcast)
+cre/scripts/run.sh start     # hourly, in the background (also: status, logs, stop)
+```
+
+**Status:**
+- The workflow runs in **simulation mode** (`--broadcast`, through Chainlink's MockKeystoneForwarder) while CRE deploy access is pending.
+- Moving it to Chainlink's network is a deploy plus `CreReceiver.setForwarder(<KeystoneForwarder>)`. No contract redeploy is needed.
+
 ## Network
 
 | | |
@@ -101,6 +120,7 @@ Each publisher commits a hash of its per-period seed onchain **before** the seed
 | RackOracle | [`0x495231539161D0e8e3f9b509e70Cc5aB2b4120dc`](https://testnet.monadvision.com/address/0x495231539161D0e8e3f9b509e70Cc5aB2b4120dc) |
 | SeriesFactory | [`0x750d1B8550704a8452C8db17Ba53352C8c28aDF4`](https://testnet.monadvision.com/address/0x750d1B8550704a8452C8db17Ba53352C8c28aDF4) |
 | HedgeRouter | [`0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C`](https://testnet.monadvision.com/address/0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C) |
+| CreReceiver (Chainlink CRE publisher) | [`0xcBC04cA6f77f5aD7d583DB4DfC34C65A49dD4310`](https://testnet.monadvision.com/address/0xcBC04cA6f77f5aD7d583DB4DfC34C65A49dD4310) |
 
 Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B200_DEMO` (30-second demo epochs). The feed ID is `keccak256(name)`. The full deployment record is in [`contracts/deployments/10143.json`](contracts/deployments/10143.json).
 
@@ -108,6 +128,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 
 - The price index is **simulated**, not real market data.
 - All oracle publishers (two bots and a Chainlink CRE workflow) are operated by the team. On mainnet, the publishers would be GPU hosts signing their own rental rates.
+- The CRE workflow currently runs in Chainlink's simulation mode on the team's machine, pending CRE deploy access.
 - Liquidity on the order books comes from a team-run test market maker. **It is not organic volume.**
 
 ## Attribution
@@ -115,6 +136,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) (MIT)
 - [forge-std](https://github.com/foundry-rs/forge-std) (MIT/Apache-2.0)
 - [viem](https://github.com/wevm/viem) (MIT)
+- [Chainlink CRE SDK](https://www.npmjs.com/package/@chainlink/cre-sdk) (BUSL-1.1), used as a dependency of the workflow and not vendored. The `IReceiver` interface follows the CRE documentation.
 - [Kuru](https://docs.kuru.io) onchain order book (testnet). `contracts/src/interfaces/IKuru.sol` declares only the function signatures Rackrate calls, taken from Kuru's public documentation.
 
 ## AI tool disclosure
