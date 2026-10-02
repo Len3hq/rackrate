@@ -164,3 +164,20 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - CRE only publishes to hourly feeds; demo feeds stay with the bots.
 - Simulation runs on the team's machine, so until deployment this publisher is not decentralized. The README states this.
 - In a deployed, non-confidential workflow, node operators could see the master seed. That's acceptable for a simulated testnet index, but a real-data mainnet version should source prices differently.
+
+### 012 — Onchain market registry and a weekly ISO calendar run by the keeper
+**Date:** 2026-10-02
+**Decision:**
+- Kuru books are created through `MarketRegistry.createMarket(series)`. It is permissionless and ownerless, accepts only series made by the `SeriesFactory`, allows one book per series, and hard-codes the market parameters.
+- Weekly series follow the ISO calendar: each runs from Monday 00:00 UTC for 168 hourly epochs.
+- The keeper keeps 4 weeks listed ahead (H100 to start), creates missing books, and settles finished series. Only listing needs the factory owner; book creation and settlement are permissionless.
+
+**Why:**
+- Apps, indexers and judges need a verifiable onchain link from each series to its book, rather than an offchain file. `MarketCreated` events also let the indexer discover markets dynamically.
+- Fixed parameters in a permissionless contract mean nobody, including the team, can list a misconfigured book for a series.
+- Predictable Monday-to-Monday weeks make the forward curve readable.
+- 4 weeks ahead with H100 only keeps costs and market-maker capital modest (each week costs ~3.8M gas for the series plus its book, ~0.4 MON).
+
+**Consequences:**
+- The first live week (2026-W41) ends Oct 12 00:00 UTC, so a real weekly series settles before the Oct 13 deadline.
+- If demo series share a feed and start epoch, the latest one wins in `seriesByStart`, so an older duplicate can't get a book. Fresh demo feeds per session (006) avoid this.

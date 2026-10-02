@@ -83,6 +83,27 @@ bots/scripts/e2e-fork.sh
 
 Each publisher commits a hash of its per-period seed onchain **before** the seed is used, and reveals the seed afterwards. Anyone can then re-derive every price it submitted.
 
+## Keeper and weekly markets
+
+The keeper keeps the market running:
+- It lists each upcoming weekly series (Monday 00:00 UTC to Monday 00:00 UTC, 168 hourly epochs, four weeks ahead).
+- It creates each series' Kuru order book through `MarketRegistry`. Anyone can call it, it has no owner, and the market parameters are fixed in the contract.
+- It settles finished series.
+
+```sh
+bots/scripts/keeper.sh start H100 4    # also: status, logs, stop
+pnpm -C bots exec node src/keeper.ts --once
+```
+
+Live H100 weeks on testnet (find them onchain with `SeriesFactory.allSeries` and `MarketRegistry.bookOf`):
+
+| Week | Window (UTC) | LONG token | Kuru book |
+|---|---|---|---|
+| 2026-W41 | Oct 5 to Oct 12 | `rrH100W41L` | [`0xAb59…0f7c`](https://testnet.monadvision.com/address/0xAb591619699EE9d690627016B15781ca55f50f7c) |
+| 2026-W42 | Oct 12 to Oct 19 | `rrH100W42L` | [`0x0bBb…7b27`](https://testnet.monadvision.com/address/0x0bBb8aC8189EeFB3AB41045c550fb19640fA7b27) |
+| 2026-W43 | Oct 19 to Oct 26 | `rrH100W43L` | [`0x027d…2f5F`](https://testnet.monadvision.com/address/0x027d0B4A4e3B07b74002eDc7A5F7262068432f5F) |
+| 2026-W44 | Oct 26 to Nov 2 | `rrH100W44L` | [`0xAdc2…40B0`](https://testnet.monadvision.com/address/0xAdc2970ba0F47fA73Df99Ee825Ec7e1Cb36140B0) |
+
 ## Chainlink CRE publisher
 
 Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) workflow (`cre/price-publisher`). Each hour it:
@@ -121,6 +142,7 @@ cre/scripts/run.sh start     # hourly, in the background (also: status, logs, st
 | SeriesFactory | [`0x750d1B8550704a8452C8db17Ba53352C8c28aDF4`](https://testnet.monadvision.com/address/0x750d1B8550704a8452C8db17Ba53352C8c28aDF4) |
 | HedgeRouter | [`0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C`](https://testnet.monadvision.com/address/0xE5eB6018cedC90204a7b27fF5dF083Dfa781226C) |
 | CreReceiver (Chainlink CRE publisher) | [`0xcBC04cA6f77f5aD7d583DB4DfC34C65A49dD4310`](https://testnet.monadvision.com/address/0xcBC04cA6f77f5aD7d583DB4DfC34C65A49dD4310) |
+| MarketRegistry | [`0x7BFefe8EeFC2F73148950dd876870AB4FEC774e5`](https://testnet.monadvision.com/address/0x7BFefe8EeFC2F73148950dd876870AB4FEC774e5) |
 
 Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B200_DEMO` (30-second demo epochs). The feed ID is `keccak256(name)`. The full deployment record is in [`contracts/deployments/10143.json`](contracts/deployments/10143.json).
 

@@ -47,7 +47,9 @@ epoch_now() { cast call "$ORACLE" "currentEpoch(bytes32)(uint64)" "$FEED_ID" --r
 until [ "$(epoch_now)" -gt "$((END + 1))" ]; do sleep 5; done
 sleep 15
 node src/demo.ts status
-node src/demo.ts settle
+echo "keeper pass: lists H100 weeks, creates their Kuru books, settles the finished demo series"
+node src/keeper.ts --once --feeds H100 --weeks 4
+node src/demo.ts status | tail -1
 
 echo "warping fork time past the reveal time of every seed the window depends on..."
 cast rpc evm_increaseTime 4500 --rpc-url "$BOT_RPC_URL" >/dev/null

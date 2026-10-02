@@ -39,6 +39,7 @@ interface Session {
   feedName: string;
   feedId: Hex;
   series: Address;
+  book: Address;
   startEpoch: string;
   endEpoch: string;
   fromBlock: string;
@@ -48,6 +49,7 @@ const dep = loadDeployment();
 const oracleAbi = loadAbi("RackOracle");
 const factoryAbi = loadAbi("SeriesFactory");
 const seriesAbi = loadAbi("Series");
+const registryAbi = loadAbi("MarketRegistry");
 const owner = ctxFromKeyEnv("DEPLOYER_PRIVATE_KEY");
 
 const oracle = (functionName: string, args: readonly unknown[], extraGas?: bigint) =>
@@ -124,10 +126,21 @@ async function start(): Promise<void> {
     args: [feedId, startEpoch],
   })) as Address;
 
+  const registry = (dep as typeof dep & { MarketRegistry: Address }).MarketRegistry;
+  await send(owner, { address: registry, abi: registryAbi, functionName: "createMarket", args: [series] });
+  const book = (await owner.pub.readContract({
+    address: registry,
+    abi: registryAbi,
+    functionName: "bookOf",
+    args: [series],
+  })) as Address;
+  log("demo", `Kuru order book ${book}`);
+
   const session: Session = {
     feedName,
     feedId,
     series,
+    book,
     startEpoch: startEpoch.toString(),
     endEpoch: endEpoch.toString(),
     fromBlock: fromBlock.toString(),
