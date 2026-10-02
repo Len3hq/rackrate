@@ -28,11 +28,8 @@ contract Deploy is Script {
         uint256 pk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(pk);
 
-        GpuSpec[3] memory gpus = [
-            GpuSpec("H100", 0.5e6, 20e6),
-            GpuSpec("H200", 0.75e6, 25e6),
-            GpuSpec("B200", 1e6, 40e6)
-        ];
+        GpuSpec[3] memory gpus =
+            [GpuSpec("H100", 0.5e6, 20e6), GpuSpec("H200", 0.75e6, 25e6), GpuSpec("B200", 1e6, 40e6)];
 
         uint64 hourGenesis = uint64(block.timestamp - (block.timestamp % HOUR));
         uint64 demoGenesis = uint64(block.timestamp - (block.timestamp % DEMO_TICK));

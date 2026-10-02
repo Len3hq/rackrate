@@ -197,9 +197,7 @@ contract SeriesTest is Test {
         vm.warp(series.windowEnd() + DELAY);
         oracle.finalize(H100, 10);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Series.CoverageTooLow.selector, 2, 4, series.windowEnd() + GRACE)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Series.CoverageTooLow.selector, 2, 4, series.windowEnd() + GRACE));
         series.settle();
 
         vm.warp(series.windowEnd() + GRACE);

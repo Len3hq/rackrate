@@ -43,6 +43,9 @@ cd contracts
 forge install
 forge build
 forge test
+
+# End-to-end smoke test against the deployed testnet contracts (local fork, nothing is broadcast)
+RUN_FORK_TESTS=true MONAD_RPC_URL=https://testnet-rpc.monad.xyz forge test --match-path "test/fork/*"
 ```
 
 ## Network
