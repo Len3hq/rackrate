@@ -1,0 +1,9 @@
+{
+  "RackOracle": "0x495231539161D0e8e3f9b509e70Cc5aB2b4120dc",
+  "SeriesFactory": "0x750d1B8550704a8452C8db17Ba53352C8c28aDF4",
+  "chainId": 10143,
+  "demoGenesis": 1790923590,
+  "deployer": "0x99D0f1FD83E9d19c765672e469D1a0ad5a71df3D",
+  "hourGenesis": 1790920800,
+  "rrUSD": "0x7C3358F8833B2a2113636b5e2707dB8354eD5DfE"
+}
