@@ -64,8 +64,21 @@ export async function send(ctx: Ctx, call: Call): Promise<Hex> {
   const gas = (est * 115n) / 100n + (call.extraGas ?? 0n);
   const hash = await ctx.wallet.writeContract({ ...req, chain: monadTestnet, gas });
   const receipt = await ctx.pub.waitForTransactionReceipt({ hash });
-  if (receipt.status !== "success") throw new Error(`${call.functionName} reverted: ${hash}`);
+  if (receipt.status !== "success") throw new OnchainRevertError(call.functionName, hash);
   return hash;
+}
+
+/**
+ * A transaction that passed estimation but reverted when mined, typically because another account's
+ * transaction landed first and changed the state (e.g. out of gas when this tx unexpectedly had to
+ * finalize an epoch). On Monad the full gas limit is still paid.
+ */
+export class OnchainRevertError extends Error {
+  readonly hash: Hex;
+  constructor(functionName: string, hash: Hex) {
+    super(`${functionName} reverted onchain (tx ${hash})`);
+    this.hash = hash;
+  }
 }
 
 /** Custom error name of a contract revert (e.g. "EpochAlreadyFinalized"), if the error is one. */

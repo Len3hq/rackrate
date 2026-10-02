@@ -57,8 +57,12 @@ pnpm install
 pnpm -C bots test          # price-model unit tests
 pnpm -C bots typecheck
 
-# Publish prices to the hourly feeds (keys and PRICE_MASTER_SECRET from contracts/.env)
-pnpm -C bots publisher --key PUBLISHER_B_PRIVATE_KEY --feeds H100,H200,B200
+# Live publishers B and C on the hourly feeds, in the background (keys and PRICE_MASTER_SECRET from contracts/.env)
+bots/scripts/publishers.sh start H100      # or H100,H200,B200
+bots/scripts/publishers.sh status          # also: logs, stop
+
+# Allowlist the publisher wallets on feeds (owner only, once)
+cd contracts && PUBLISH_FEEDS=H100 forge script script/SetPublishers.s.sol --rpc-url $MONAD_RPC_URL --broadcast
 
 # Demo session: a fresh 30-second feed and a series that settles in ~10 minutes
 pnpm -C bots demo start --gpu H100

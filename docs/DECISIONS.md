@@ -103,3 +103,20 @@ A log of the important design decisions behind Rackrate and why they were made. 
 **Consequences:**
 - `forge build` must run before the bots.
 - Code must use only erasable TypeScript syntax (no enums or namespaces).
+
+### 009 — Publisher gas strategy for Monad's gas-limit billing
+**Date:** 2026-10-02
+**Decision:**
+- Publishers send transactions with exact estimates plus 15%, with no standing buffer.
+- A submit that reverts onchain (it ran out of gas because another publisher's submit landed first, making it the epoch's finalizer) is retried once with finalize headroom.
+- Exactly one publisher (B) finalizes backlogs. The other (C) runs 20 seconds behind B and skips finalization.
+
+**Why:**
+- Monad bills the full gas *limit*, even for reverted transactions.
+- On the first live run, a standing 150k-gas buffer more than doubled the cost of every submit (285k billed vs ~118k needed).
+- Two publishers finalizing the same backlog meant one always reverted and paid in full.
+
+**Consequences:**
+- Running cost is roughly halved.
+- Staggering means C normally lands last, so its estimate already covers finalizing the epoch.
+- The rare race costs one reverted transaction and a retry.

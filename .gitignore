@@ -33,3 +33,4 @@ indexer/.envio/
 
 # Bots
 bots/.demo-session.json
+bots/.run/

@@ -13,7 +13,15 @@
  */
 import { parseArgs } from "node:util";
 import { type Hex, keccak256, parseAbiItem, toBytes } from "viem";
-import { type Ctx, chainTime, ctxFromKeyEnv, errorMessage, revertName, send } from "./lib/chain.ts";
+import {
+  type Ctx,
+  OnchainRevertError,
+  chainTime,
+  ctxFromKeyEnv,
+  errorMessage,
+  revertName,
+  send,
+} from "./lib/chain.ts";
 import { env, loadAbi, loadDeployment, loadEnv, log } from "./lib/config.ts";
 import {
   paramsFor,
@@ -34,11 +42,19 @@ const { values } = parseArgs({
     interval: { type: "string", default: "5" },
     rogue: { type: "boolean", default: false },
     once: { type: "boolean", default: false },
+    /** Leave backlog finalization to another publisher (avoids two publishers racing to finalize). */
+    "skip-finalize": { type: "boolean", default: false },
+    /** Seconds to wait before the first tick, to stagger publishers. */
+    delay: { type: "string", default: "0" },
     "from-block": { type: "string" },
   },
 });
 
-/** Gas headroom for a submit that also finalizes the epoch (the last publisher in triggers finalization). */
+/**
+ * Gas headroom for retrying a submit that ran out of gas because it unexpectedly had to finalize the
+ * epoch (another publisher's submit landed between our estimate and our transaction). Monad bills the
+ * full gas limit, so the headroom is only added on retry, never by default.
+ */
 const FINALIZE_HEADROOM = 150_000n;
 /** Rogue mode multiplies this publisher's price, to show the median ignoring an outlier. */
 const ROGUE_MULT = 13n;
@@ -154,7 +170,15 @@ async function tickFeed(feed: FeedState, now: bigint): Promise<void> {
     if (await read<boolean>("hasSubmitted", [feed.id, e, me])) continue;
     let price = publisherPrice(seedFor, params, e, me, scenarioKindAt(feed.scenarios, e));
     if (values.rogue) price *= ROGUE_MULT;
-    if (await tx("submit", [feed.id, e, price], FINALIZE_HEADROOM)) {
+    let submitted: boolean;
+    try {
+      submitted = await tx("submit", [feed.id, e, price]);
+    } catch (err) {
+      if (!(err instanceof OnchainRevertError)) throw err;
+      log(scope, `${feed.name}: ${err.message}; retrying with finalize headroom`);
+      submitted = await tx("submit", [feed.id, e, price], FINALIZE_HEADROOM);
+    }
+    if (submitted) {
       log(scope, `${feed.name}: epoch ${e} submitted $${(Number(price) / 1e6).toFixed(4)}${values.rogue ? " (rogue)" : ""}`);
     }
   }
@@ -168,8 +192,8 @@ async function tickFeed(feed: FeedState, now: bigint): Promise<void> {
     }
   }
 
-  // 4. Finalize any backlog.
-  if (await read<boolean>("canFinalize", [feed.id])) {
+  // 4. Finalize any backlog (unless another publisher is assigned to it).
+  if (!values["skip-finalize"] && (await read<boolean>("canFinalize", [feed.id]))) {
     try {
       if (await tx("finalize", [feed.id, 50n])) {
         log(scope, `${feed.name}: finalized pending epochs`);
@@ -192,6 +216,7 @@ async function tick(): Promise<void> {
 }
 
 log(scope, `oracle ${dep.RackOracle}, feeds ${feeds.map((f) => f.name).join(", ")}${values.rogue ? ", ROGUE MODE" : ""}`);
+if (Number(values.delay) > 0) await new Promise((r) => setTimeout(r, Number(values.delay) * 1000));
 if (values.once) {
   await tick();
 } else {

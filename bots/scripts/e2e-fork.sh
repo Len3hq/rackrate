@@ -24,7 +24,7 @@ PUBS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8,0x3C44CdDdB6a900fa2b585dd299e03d
 cleanup() { kill $(jobs -p) 2>/dev/null || true; }
 trap cleanup EXIT
 
-anvil --fork-url "$MONAD_RPC_URL" --port "$PORT" --block-time 1 >"$LOGS/anvil.log" 2>&1 &
+anvil --fork-url "${MONAD_RPC_URL_PRIVATE:-$MONAD_RPC_URL}" --port "$PORT" --block-time 1 >"$LOGS/anvil.log" 2>&1 &
 until cast chain-id --rpc-url "$BOT_RPC_URL" >/dev/null 2>&1; do sleep 1; done
 echo "fork up (chain $(cast chain-id --rpc-url "$BOT_RPC_URL")), logs in $LOGS"
 
@@ -46,8 +46,8 @@ FEED_ID=$(node -e 'console.log(require("./.demo-session.json").feedId)')
 epoch_now() { cast call "$ORACLE" "currentEpoch(bytes32)(uint64)" "$FEED_ID" --rpc-url "$BOT_RPC_URL"; }
 until [ "$(epoch_now)" -gt "$((END + 1))" ]; do sleep 5; done
 sleep 15
-node src/demo.ts settle
 node src/demo.ts status
+node src/demo.ts settle
 
 echo "warping fork time past the reveal time of every seed the window depends on..."
 cast rpc evm_increaseTime 4500 --rpc-url "$BOT_RPC_URL" >/dev/null
