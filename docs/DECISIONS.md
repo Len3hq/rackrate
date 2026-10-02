@@ -198,3 +198,22 @@ A log of the important design decisions behind Rackrate and why they were made. 
 **Consequences:**
 - With 4 books, running cost is roughly 0.3–0.4 MON per day plus fills.
 - The maker holds the SHORT side of everything it mints. That is fine for test liquidity, but a real maker would hedge it or sell it on a SHORT book.
+
+### 014 — Web app reads the chain directly, quotes by simulation, and uses browser wallets
+**Date:** 2026-10-02
+**Decision:**
+- The Next.js app reads all state straight from Monad (series, books, oracle, balances) through batched Multicall3 calls, with no indexer or backend.
+- Quotes simulate the real `HedgeRouter` transaction against the live Kuru books. rrUSD balance and allowance are overridden in the simulation (`eth_call` state overrides on ERC20 storage slots 0 and 1).
+- Wallets connect through wagmi's injected connector with EIP-6963 discovery (Rabby, MetaMask, Phantom and others) instead of Privy.
+- Transactions use the estimate plus 15% as the gas limit, as the bots do.
+
+**Why:**
+- Current state fits in two or three multicalls per refresh. The feed's hourly history comes from `getEpoch` and the oracle's prefix sums, so the indexer isn't needed for the core product.
+- A simulated quote is exact (same code path, fill-or-kill, live book) and works before the user has connected, funded or approved. Reimplementing Kuru's matching offchain would risk mismatched quotes.
+- Privy needs an app ID and dashboard setup. Browser wallets need no credentials and are what Monad testnet users already have.
+- Monad bills the gas limit, so wallet-default gas buffers would overcharge.
+
+**Consequences:**
+- Trade and fill history beyond the current state isn't shown. An indexer can add it later without changing the contracts.
+- The app depends on the RPC supporting state overrides. Monad testnet's public RPC does.
+- Users without a browser wallet must install one. There is no email login.

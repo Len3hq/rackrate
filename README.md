@@ -34,9 +34,25 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 | `contracts/` | Solidity (Foundry): test dollar, oracle, series factory, hedge router, Kuru interfaces |
 | `cre/` | Chainlink CRE workflow (oracle publisher A) and its hourly runner |
 | `bots/` | Publisher bots, demo ticker, keeper, market maker |
-| `indexer/` | Envio HyperIndex |
-| `app/` | Next.js frontend (Privy) |
+| `app/` | Next.js web app: landing page, trading, portfolio, oracle explorer and docs |
 | `docs/` | Architecture notes and the [decisions log](docs/DECISIONS.md) |
+
+## Web app
+
+`app/` is a Next.js 16 site with light and dark themes:
+- **Landing page:** the live forward curve, an interactive payoff explorer, and the oracle's latest publishers.
+- **Trade:** hedge revenue or lock compute cost across several weeks in one transaction.
+- **Portfolio:** faucet, positions, redeem, settle and claim.
+- **Oracle:** every hourly print, gap and publisher submission.
+- **Docs.**
+
+It reads the chain directly (batched multicalls through viem and wagmi), and works with any browser wallet discovered through EIP-6963. Quotes are exact: the app simulates the real `HedgeRouter` transaction against the live Kuru books, overriding rrUSD balance and allowance in the simulation, so quotes show before you connect or approve.
+
+```sh
+pnpm install
+pnpm -C app dev                     # http://localhost:3000
+pnpm -C app sync-abis               # after changing contracts: refresh ABIs and addresses from contracts/out
+```
 
 ## Quick start (contracts)
 
@@ -174,6 +190,10 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [viem](https://github.com/wevm/viem) (MIT)
 - [Chainlink CRE SDK](https://www.npmjs.com/package/@chainlink/cre-sdk) (BUSL-1.1), used as a dependency of the workflow and not vendored. The `IReceiver` interface follows the CRE documentation.
 - [Kuru](https://docs.kuru.io) onchain order book (testnet). `contracts/src/interfaces/IKuru.sol` declares only the function signatures Rackrate calls, taken from Kuru's public documentation.
+- [React Bits](https://reactbits.dev) components (Threads, CountUp, SpotlightCard) in `app/src/components/reactbits/`, used as part of the app under their MIT + Commons Clause license (see the `LICENSE.md` in that folder). They are not covered by this repository's MIT license.
+- Design guidance from [Taste Skill](https://github.com/Leonxlnx/taste-skill) (MIT).
+- Next.js, React, Tailwind CSS, Motion, wagmi, TanStack Query, OGL, Phosphor Icons and the Geist typefaces (open source licenses).
+- Photographs from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). Full credits are on the site at `/docs/credits`.
 
 ## AI tool disclosure
 

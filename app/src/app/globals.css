@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+/* Theme is a class on <html> (set by next-themes before first paint), defaulting to the system preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Rackrate tokens. Violet is the brand and action colour; mint is reserved for live data and the LONG/positive
+ * side; rose for SHORT/negative. Radius rule: buttons are full pill, cards 16px, inputs and chips 12px.
+ */
+:root {
+  --bg: #f7f6fa;
+  --bg-deep: #efedf5;
+  --surface: #fdfcff;
+  --surface-2: #f2f0f8;
+  --ink: #15121d;
+  --ink-2: #4b4658;
+  --muted: #6c6779;
+  --line: rgb(21 18 29 / 0.09);
+  --line-strong: rgb(21 18 29 / 0.16);
+  --accent: #5532e0;
+  --accent-ink: #fdfcff;
+  --accent-soft: rgb(85 50 224 / 0.09);
+  --mint: #0b9a6a;
+  --mint-soft: rgb(11 154 106 / 0.1);
+  --rose: #c2364b;
+  --rose-soft: rgb(194 54 75 / 0.09);
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.7) inset, 0 18px 50px -24px rgb(54 32 140 / 0.28);
+  --threads: 0.333, 0.196, 0.878;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0d0b12;
+  --bg-deep: #08070c;
+  --surface: #15121c;
+  --surface-2: #1c1826;
+  --ink: #eeebf5;
+  --ink-2: #c5c0d2;
+  --muted: #9a95a8;
+  --line: rgb(238 235 245 / 0.08);
+  --line-strong: rgb(238 235 245 / 0.15);
+  --accent: #a08bff;
+  --accent-ink: #120e1d;
+  --accent-soft: rgb(160 139 255 / 0.12);
+  --mint: #45e3a6;
+  --mint-soft: rgb(69 227 166 / 0.1);
+  --rose: #ff7a8c;
+  --rose-soft: rgb(255 122 140 / 0.1);
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 24px 60px -28px rgb(0 0 0 / 0.7);
+  --threads: 0.627, 0.545, 1;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-deep: var(--bg-deep);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --shadow-card: var(--shadow);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Tabular figures for every number the app prints. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Film grain on a fixed, non-interactive layer only (never on scrolling content). */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Photographs are toned into the palette so they sit in both themes. */
+.photo-tone {
+  filter: grayscale(1) contrast(1.05) brightness(0.95);
+}
+.photo-tint {
+  background: linear-gradient(160deg, rgb(85 50 224 / 0.55), rgb(13 11 18 / 0.35));
+  mix-blend-mode: multiply;
+}
+.dark .photo-tint {
+  background: linear-gradient(160deg, rgb(160 139 255 / 0.4), rgb(13 11 18 / 0.6));
+}
+
+/* Skeleton shimmer for loading states. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.18), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Documentation typography. */
+.doc {
+  color: var(--ink-2);
+  line-height: 1.75;
+}
+.doc h2 {
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--ink);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  scroll-margin-top: 6rem;
+}
+.doc h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+.doc p,
+.doc ul,
+.doc ol {
+  margin-top: 0.875rem;
+  max-width: 72ch;
+}
+.doc ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.doc ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}
+.doc li {
+  margin-top: 0.375rem;
+}
+.doc li::marker {
+  color: var(--accent);
+}
+.doc a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+.doc a:hover {
+  text-decoration: underline;
+}
+.doc strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.doc code {
+  border-radius: 6px;
+  background: var(--surface-2);
+  padding: 0.1rem 0.35rem;
+  color: var(--ink);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.doc pre {
+  margin-top: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.doc pre code {
+  background: none;
+  padding: 0;
+}
+.doc table {
+  display: block;
+  overflow-x: auto;
+  margin-top: 1rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.doc th {
+  border-bottom: 1px solid var(--line-strong);
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  color: var(--ink);
+  font-weight: 500;
+  text-align: left;
+}
+.doc td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.75rem 0.55rem 0;
+  vertical-align: top;
+}

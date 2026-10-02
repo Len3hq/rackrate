@@ -1,2 +1,7 @@
 packages:
   - bots
+  - app
+
+allowBuilds:
+  sharp: true
+  unrs-resolver: false
