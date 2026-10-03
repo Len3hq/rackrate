@@ -49,6 +49,10 @@ export const DOCS: DocPage[] = [
             Watch the position in <Link href="/portfolio">Portfolio</Link>. After the week ends and settles, claim the payout there.
           </li>
         </ol>
+        <h2>Demo weeks</h2>
+        <p>
+          A real week takes seven days to settle. For demonstrations the team can run a <strong>demo week</strong>: a fresh 30-second index and a series of 20 epochs that settles in about ten minutes. While one is running it appears on <Link href="/trade">Trade</Link> as &quot;H100 demo week&quot;, with its own order book, and it settles and pays out exactly like a weekly series.
+        </p>
         <h2>On testnet</h2>
         <p>
           Everything runs on Monad testnet. The H100 index is <strong>simulated</strong>, the publishers are operated by the team, and order book liquidity comes from a team-run test market maker. See <Link href="/docs/testnet">Testnet limits</Link>.
@@ -83,6 +87,10 @@ SHORT pays (cap − A)   × 168`}</code>
         <h2>Prices and implied rates</h2>
         <p>
           LONG trades on Kuru against rrUSD. A LONG price converts to an implied rental rate as <code>floor + price ÷ 168</code>. A LONG at $466 implies $3.77 per GPU-hour. The trade screen shows both numbers.
+        </p>
+        <h2>Closing early</h2>
+        <p>
+          Positions do not have to be held to settlement. <strong>Close</strong> in <Link href="/portfolio">Portfolio</Link> redeems matched LONG and SHORT pairs for $672 each, sells any extra LONG into the week&apos;s order book, and buys back LONG to match any extra SHORT. Each step is quoted before you sign.
         </p>
         <h2>One transaction for many weeks</h2>
         <p>
@@ -305,34 +313,6 @@ SHORT pays (cap − A)   × 168`}</code>
           <li>
             <strong>Partial hedges outside the range.</strong> Prices below $1 or above $5 per hour are not covered.
           </li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    slug: "credits",
-    title: "Credits",
-    description: "Images, components and libraries used on this site.",
-    body: (
-      <>
-        <h2>Photography</h2>
-        <ul>
-          <li>
-            GPU cluster: &quot;The CSIRO GPU cluster at the data centre&quot;, CSIRO, <a href="https://creativecommons.org/licenses/by/3.0" target="_blank" rel="noreferrer">CC BY 3.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:CSIRO_ScienceImage_11313_The_CSIRO_GPU_cluster_at_the_data_centre.jpg" target="_blank" rel="noreferrer">Wikimedia Commons</a>. Toned and cropped.
-          </li>
-          <li>
-            Server racks: &quot;Datacenter Server Racks&quot;, Carl Lender, <a href="https://creativecommons.org/licenses/by/2.0" target="_blank" rel="noreferrer">CC BY 2.0</a>, via <a href="https://commons.wikimedia.org/wiki/File:Datacenter_Server_Racks_(22370909788).jpg" target="_blank" rel="noreferrer">Wikimedia Commons</a>. Toned and cropped.
-          </li>
-          <li>
-            Rack close-up: &quot;Rear of rack at NERSC data center&quot;, Derrick Coetzee, CC0, via <a href="https://commons.wikimedia.org/wiki/File:Rear_of_rack_at_NERSC_data_center_-_closeup.jpg" target="_blank" rel="noreferrer">Wikimedia Commons</a>.
-          </li>
-        </ul>
-        <h2>Components and libraries</h2>
-        <ul>
-          <li>
-            <a href="https://reactbits.dev" target="_blank" rel="noreferrer">React Bits</a> by David Haz (Threads, CountUp, SpotlightCard), MIT + Commons Clause.
-          </li>
-          <li>Next.js, React, Tailwind CSS, Motion, wagmi, viem, TanStack Query, OGL, Phosphor Icons and the Geist typefaces, under their respective open source licenses.</li>
         </ul>
       </>
     ),

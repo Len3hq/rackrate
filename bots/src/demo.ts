@@ -31,7 +31,7 @@ const { positionals, values } = parseArgs({
   },
 });
 
-const SESSION_FILE = resolve(ROOT, "bots", ".demo-session.json");
+const SESSION_FILE = process.env.DEMO_SESSION_FILE || resolve(ROOT, "bots", ".demo-session.json"); // tests use their own
 const DEMO_TICK = 30n;
 const STATUS = ["Open", "Printed", "Missing", "RejectedBounds", "RejectedJump"];
 

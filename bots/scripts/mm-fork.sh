@@ -20,14 +20,12 @@ export MM_PRIVATE_KEY=0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c3
 MM=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
 TRADER_KEY=0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
 TRADER=0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc
-STATE=.run/mm-state.json
 DEP=../contracts/deployments/10143.json
 j() { node -e "console.log(require('$DEP').$1)"; }
 USD=$(j rrUSD); REGISTRY=$(j MarketRegistry); FACTORY=$(j SeriesFactory); HEDGE=$(j HedgeRouter)
 
-mkdir -p .run
-[ -f "$STATE" ] && mv "$STATE" "$STATE.bak-$$"   # never touch the live maker's state
-cleanup() { rm -f "$STATE"; [ -f "$STATE.bak-$$" ] && mv "$STATE.bak-$$" "$STATE"; kill $(jobs -p) 2>/dev/null || true; }
+export MM_STATE_FILE=$(mktemp)   # never share order state with the live maker
+cleanup() { rm -f "$MM_STATE_FILE"; kill $(jobs -p) 2>/dev/null || true; }
 trap cleanup EXIT
 
 anvil --fork-url "${MONAD_RPC_URL_PRIVATE:-$MONAD_RPC_URL}" --port "$PORT" --block-time 1 >/dev/null 2>&1 &

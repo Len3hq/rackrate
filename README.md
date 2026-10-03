@@ -52,7 +52,12 @@ It reads the chain directly (batched multicalls through viem and wagmi), and wor
 pnpm install
 pnpm -C app dev                     # http://localhost:3000
 pnpm -C app sync-abis               # after changing contracts: refresh ABIs and addresses from contracts/out
+app/scripts/e2e-fork.sh             # browser end-to-end test on a local fork (needs anvil and Chrome; ~8 min)
 ```
+
+The end-to-end test drives the real UI with a test wallet against a fork of Monad testnet. It covers faucet, approval, a two-week hedge, a purchase, closing both positions (buy-back plus redeem, and redeem plus sell), and a demo week that is hedged, settled and claimed in the app.
+
+Open positions can be closed before settlement from Portfolio. Close redeems matched pairs, sells extra LONG into the book from the wallet, and buys back LONG to match extra SHORT. A live demo week (about 10 minutes, see below) appears on Trade alongside the weekly markets.
 
 ## Quick start (contracts)
 
@@ -84,11 +89,12 @@ bots/scripts/publishers.sh status          # also: logs, stop
 # Allowlist the publisher wallets on feeds (owner only, once)
 cd contracts && PUBLISH_FEEDS=H100 forge script script/SetPublishers.s.sol --rpc-url $MONAD_RPC_URL --broadcast
 
-# Demo session: a fresh 30-second feed and a series that settles in ~10 minutes
-pnpm -C bots demo start --gpu H100
-pnpm -C bots demo scenario crash    # or spike / reset
-pnpm -C bots demo status
-pnpm -C bots demo settle
+# Live demo week: a fresh 30-second feed and a 20-epoch series (~10 minutes) with its own Kuru book.
+# B and C publish it alongside H100; the market maker quotes it; it shows on Trade as "H100 demo week".
+bots/scripts/demo.sh start            # ~0.5 MON of deployer gas
+bots/scripts/demo.sh scenario crash   # or spike / reset
+bots/scripts/demo.sh status
+bots/scripts/demo.sh stop             # after it settles: publishers back to H100 only
 
 # Independent audit: re-derive every submitted price from the seeds revealed onchain
 pnpm -C bots exec node src/audit.ts --feed <feed name> --from-block <block>
@@ -131,6 +137,7 @@ A team-run maker keeps every live weekly book quoted, so the hedge and buy scree
 
 ```sh
 bots/scripts/mm.sh start               # also: status, logs, stop, cancel (pull every quote)
+pnpm -C bots exec node src/mm.ts --recover   # rebuild the maker's order state from the chain
 bots/scripts/mm-fork.sh                # end-to-end on a local fork: quote, trader fills via HedgeRouter, requote
 ```
 
@@ -193,7 +200,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [React Bits](https://reactbits.dev) components (Threads, CountUp, SpotlightCard) in `app/src/components/reactbits/`, used as part of the app under their MIT + Commons Clause license (see the `LICENSE.md` in that folder). They are not covered by this repository's MIT license.
 - Design guidance from [Taste Skill](https://github.com/Leonxlnx/taste-skill) (MIT).
 - Next.js, React, Tailwind CSS, Motion, wagmi, TanStack Query, OGL, Phosphor Icons and the Geist typefaces (open source licenses).
-- Photographs from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). Full credits are on the site at `/docs/credits`.
+- Photographs from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). The site credits them in its footer.
 
 ## AI tool disclosure
 

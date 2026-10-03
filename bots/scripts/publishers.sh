@@ -13,7 +13,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 RUN=.run
 mkdir -p "$RUN"
-INTERVAL=60 # seconds; hourly epochs only need a check per minute
+INTERVAL="${PUB_INTERVAL:-60}" # seconds; hourly epochs only need a check per minute (demo.sh uses 5)
 
 start() {
   local feeds="${1:-H100}"

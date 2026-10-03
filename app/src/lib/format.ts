@@ -45,5 +45,17 @@ export function countdown(seconds: number): string {
   const m = Math.floor((seconds % 3600) / 60);
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  if (m > 0) return `${m}m ${Math.floor(seconds % 60)}s`;
+  return `${Math.floor(seconds)}s`;
+}
+
+const hhmm = (ts: number) => {
+  const d = new Date(ts * 1000);
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+};
+
+/** "Oct 5 to Oct 12" for weekly windows, "Oct 3, 14:05 to 14:15 UTC" for short demo windows. */
+export function windowLabel(start: number, end: number): string {
+  if (end - start >= 86_400) return `${utcDay(start)} to ${utcDay(end)}`;
+  return `${utcDay(start)}, ${hhmm(start)} to ${hhmm(end)} UTC`;
 }

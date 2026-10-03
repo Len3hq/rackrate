@@ -1,15 +1,18 @@
 "use client";
 
 import { Drop, Wallet } from "@phosphor-icons/react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
+import type { Address } from "viem";
 import { useAccount } from "wagmi";
 import { type Market, useHoldings, useMarkets } from "@/lib/data";
-import { countdown, num, toNum, usd, utcDay } from "@/lib/format";
+import { countdown, num, toNum, usd, windowLabel } from "@/lib/format";
 import { deployment, rRUSDAbi, seriesAbi } from "@/lib/generated";
 import { useTx } from "@/lib/tx";
 import { ConnectButton } from "../connect";
 import { Button, ButtonLink, Pill, Skeleton } from "../ui";
+import { ClosePanel } from "./close";
+import { AddToken } from "../add-token";
 
 function status(m: Market, now: number) {
   if (m.settled) return { label: `Settled at ${usd(m.settlementPrice)}/hr`, tone: "accent" as const };
@@ -31,9 +34,10 @@ export function PortfolioView() {
   const markets = useMarkets();
   const holdings = useHoldings(markets.data);
   const { send, pending } = useTx();
+  const [closing, setClosing] = useState<Address | null>(null);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   useEffect(() => {
-    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 5_000);
     return () => clearInterval(t);
   }, []);
 
@@ -67,6 +71,7 @@ export function PortfolioView() {
     <Shell>
       <div className="grid gap-4 md:grid-cols-3">
         <Tile label="rrUSD balance" value={h ? usd(toNum(h.usd)) : null}>
+          <div className="mt-1 -ml-1.5"><AddToken address={deployment.rrUSD} symbol="rrUSD" /></div>
           <Button
             variant="secondary"
             className="mt-4 w-full"
@@ -99,7 +104,6 @@ export function PortfolioView() {
         )}
         {rows.map(({ m, p, long, short, value: v }, i) => {
           const st = status(m, now);
-          const pairs = p.long < p.short ? p.long : p.short;
           return (
             <motion.div
               key={m.series}
@@ -109,8 +113,12 @@ export function PortfolioView() {
               className="grid grid-cols-2 items-center gap-x-4 gap-y-2 border-b border-line px-5 py-4 last:border-b-0 md:grid-cols-[1.4fr_0.8fr_0.8fr_1.2fr_1fr_auto]"
             >
               <div className="col-span-2 md:col-span-1">
-                <p className="font-medium">{m.isDemo ? `${m.gpu} demo` : m.week}</p>
-                <p className="text-xs text-muted">{utcDay(m.start)} to {utcDay(m.end)}</p>
+                <p className="font-medium">{m.isDemo ? `${m.gpu} demo week` : m.week}</p>
+                <p className="text-xs text-muted">{windowLabel(m.start, m.end)}</p>
+                <div className="-ml-1.5 mt-1 flex gap-1">
+                  {p.long > 0n && <AddToken address={m.long} symbol={m.symbol} compact />}
+                  {p.short > 0n && <AddToken address={m.short} symbol={m.symbol.replace(/L$/, "S")} compact />}
+                </div>
               </div>
               <p className="font-mono text-sm tnum md:text-right"><span className="text-muted md:hidden">LONG </span>{num(long, 4)}</p>
               <p className="font-mono text-sm tnum md:text-right"><span className="text-muted md:hidden">SHORT </span>{num(short, 4)}</p>
@@ -125,20 +133,21 @@ export function PortfolioView() {
                   <Button variant="secondary" className="w-full md:w-auto" disabled={!!pending} onClick={() => send({ address: m.series, abi: seriesAbi, functionName: "settle" }, `Settle ${m.week}`)}>
                     Settle
                   </Button>
-                ) : pairs > 0n ? (
-                  <Button variant="secondary" className="w-full md:w-auto" disabled={!!pending} onClick={() => send({ address: m.series, abi: seriesAbi, functionName: "redeemPair", args: [pairs] }, `Redeem ${num(toNum(pairs))} ${m.week} pairs`)}>
-                    Redeem pairs
-                  </Button>
                 ) : (
-                  <ButtonLink href="/trade" variant="ghost">Trade</ButtonLink>
+                  <Button variant="secondary" className="w-full md:w-auto" disabled={!!pending} onClick={() => setClosing(closing === m.series ? null : m.series)} aria-expanded={closing === m.series}>
+                    {closing === m.series ? "Hide" : "Close"}
+                  </Button>
                 )}
               </div>
+              <AnimatePresence>
+                {closing === m.series && <ClosePanel m={m} long={p.long} short={p.short} onClose={() => setClosing(null)} />}
+              </AnimatePresence>
             </motion.div>
           );
         })}
       </section>
       <p className="mt-4 text-xs leading-relaxed text-muted">
-        At settlement each LONG pays (weekly average minus floor) times 168 and each SHORT pays (cap minus average) times 168, in rrUSD. A LONG and SHORT of the same week together are always worth the full range and can be redeemed before settlement.
+        At settlement each LONG pays (weekly average minus floor) times 168 and each SHORT pays (cap minus average) times 168, in rrUSD. Before settlement, Close sells or buys back LONG on Kuru and redeems matched LONG and SHORT pairs for their full collateral.
       </p>
     </Shell>
   );

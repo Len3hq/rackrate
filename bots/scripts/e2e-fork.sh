@@ -14,6 +14,7 @@ set -a; . ../contracts/.env; set +a
 PORT=8546
 LOGS=$(mktemp -d)
 export BOT_RPC_URL="http://127.0.0.1:${PORT}"
+export DEMO_SESSION_FILE="$LOGS/demo-session.json" # never the live session file
 export PRICE_MASTER_SECRET="0x$(openssl rand -hex 32)"
 # anvil default accounts #1-#3 (public test keys, funded on the fork)
 export PUBLISHER_B_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
@@ -29,9 +30,9 @@ until cast chain-id --rpc-url "$BOT_RPC_URL" >/dev/null 2>&1; do sleep 1; done
 echo "fork up (chain $(cast chain-id --rpc-url "$BOT_RPC_URL")), logs in $LOGS"
 
 node src/demo.ts start --epochs 6 --publishers "$PUBS"
-FEED=$(node -e 'console.log(require("./.demo-session.json").feedName)')
-FROM=$(node -e 'console.log(require("./.demo-session.json").fromBlock)')
-END=$(node -e 'console.log(require("./.demo-session.json").endEpoch)')
+FEED=$(node -e 'console.log(require(process.env.DEMO_SESSION_FILE).feedName)')
+FROM=$(node -e 'console.log(require(process.env.DEMO_SESSION_FILE).fromBlock)')
+END=$(node -e 'console.log(require(process.env.DEMO_SESSION_FILE).endEpoch)')
 
 for p in B C; do
   node src/publisher.ts --key "PUBLISHER_${p}_PRIVATE_KEY" --feeds "$FEED" --from-block "$FROM" --interval 3 >"$LOGS/pub$p.log" 2>&1 &
@@ -42,7 +43,7 @@ sleep 75
 node src/demo.ts scenario crash
 
 ORACLE=$(node -e 'console.log(require("../contracts/deployments/10143.json").RackOracle)')
-FEED_ID=$(node -e 'console.log(require("./.demo-session.json").feedId)')
+FEED_ID=$(node -e 'console.log(require(process.env.DEMO_SESSION_FILE).feedId)')
 epoch_now() { cast call "$ORACLE" "currentEpoch(bytes32)(uint64)" "$FEED_ID" --rpc-url "$BOT_RPC_URL"; }
 until [ "$(epoch_now)" -gt "$((END + 1))" ]; do sleep 5; done
 sleep 15

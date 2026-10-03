@@ -1,13 +1,14 @@
 "use client";
 
 import { ArrowUpRight, Check } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Address } from "viem";
-import { impliedRate, liveWeekly, useMarkets, useOracle } from "@/lib/data";
-import { countdown, usd, utcDay } from "@/lib/format";
+import { impliedRate, liveDemo, liveWeekly, useMarkets, useOracle } from "@/lib/data";
+import { countdown, usd, windowLabel } from "@/lib/format";
 import { explorer } from "@/lib/wagmi";
 import { Pill, Skeleton } from "../ui";
 import { ForwardCurve } from "./curve";
+import { Depth, SettledWeeks } from "./depth";
 import { type Mode, Ticket } from "./ticket";
 
 export function TradeView() {
@@ -16,17 +17,24 @@ export function TradeView() {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const [mode, setMode] = useState<Mode>("hedge");
   const [selected, setSelected] = useState<Address[]>([]);
+  const [focus, setFocus] = useState<Address | null>(null); // week shown in the order book
+
+  const weekly = liveWeekly(markets.data, now);
+  const demo = liveDemo(markets.data, now);
+  // Weekly markets, plus the live demo series (a ~10 minute week used for demos) when one is running.
+  const weeks = demo ? [...weekly, demo] : weekly;
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    const t = setInterval(() => setNow(Math.floor(Date.now() / 1000)), demo ? 5_000 : 30_000);
     return () => clearInterval(t);
-  }, []);
-
-  const weeks = liveWeekly(markets.data, now);
-  // Default selection: the next week to start.
+  }, [demo]);
+  // Default selection, once: the next week to start. After that the user may deselect everything.
+  const defaulted = useRef(false);
   useEffect(() => {
-    if (selected.length === 0 && weeks.length > 0) setSelected([weeks[0].series]);
-  }, [weeks, selected.length]);
+    if (defaulted.current || weekly.length === 0) return;
+    defaulted.current = true;
+    setSelected([weekly[0].series]);
+  }, [weekly]);
 
   const toggle = (s: Address) => setSelected((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
@@ -54,7 +62,7 @@ export function TradeView() {
               </span>
             </div>
             <div className="mt-4">
-              {markets.data ? <div className="-mx-2 overflow-x-auto px-2"><div className="min-w-[520px]"><ForwardCurve markets={weeks} index={oracle.data?.lastPrice ?? null} /></div></div> : <Skeleton className="h-[200px] w-full" />}
+              {markets.data ? <div className="-mx-2 overflow-x-auto px-2"><div className="min-w-[520px]"><ForwardCurve markets={weekly} index={oracle.data?.lastPrice ?? null} /></div></div> : <Skeleton className="h-[200px] w-full" />}
             </div>
           </section>
 
@@ -88,9 +96,9 @@ export function TradeView() {
                 >
                   <span className={`grid h-5 w-5 place-items-center rounded-md border transition ${on ? "border-accent bg-accent text-accent-ink" : "border-line-strong"}`}>{on && <Check size={12} weight="bold" />}</span>
                   <span>
-                    <span className="block font-medium">{m.week}</span>
+                    <span className="block font-medium">{m.isDemo ? `${m.gpu} demo week` : m.week}</span>
                     <span className="block text-xs text-muted">
-                      {utcDay(m.start)} to {utcDay(m.end)} ·{" "}
+                      {windowLabel(m.start, m.end)} ·{" "}
                       <a href={`${explorer}/address/${m.book}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 hover:text-accent">
                         Kuru book <ArrowUpRight size={10} />
                       </a>
@@ -100,11 +108,14 @@ export function TradeView() {
                   <Quote price={m.ask} rate={impliedRate(m, m.ask)} />
                   <span className="col-span-3 col-start-2 md:col-span-1 md:col-start-auto md:text-right">
                     {started ? <Pill tone="mint">Printing, ends in {countdown(m.end - now)}</Pill> : <Pill>Starts in {countdown(m.start - now)}</Pill>}
+                    {m.isDemo && <span className="ml-2"><Pill tone="accent">{m.epochs} × 30s epochs</Pill></span>}
                   </span>
                 </div>
               );
             })}
           </section>
+          {markets.data && weeks.length > 0 && <Depth markets={weeks} focus={focus ?? selected[0] ?? null} setFocus={setFocus} />}
+          {markets.data && <SettledWeeks markets={markets.data} />}
           <p className="text-xs leading-relaxed text-muted">
             Prices are per LONG token, which covers one H100 for the whole week. The $/hr figure is the implied rental rate: floor ($1) plus price divided by 168 hours. Range $1 to $5.
           </p>

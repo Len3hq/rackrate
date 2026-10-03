@@ -8,7 +8,8 @@
  *
  * Each requote is one Kuru `batchUpdate` per book (cancel the old ladder, place the new one). A book is requoted
  * only when it has no quotes, fair value moved more than --threshold bps, or one of its orders
- * was filled, so an idle market costs no gas. Quoting stops one hour before a window ends.
+ * was filled, so an idle market costs no gas. Quoting stops one hour before a weekly window ends, or two epochs
+ * before a demo series ends.
  *
  * The maker only places resting orders and never takes liquidity, so it can't trade with itself. Bids are funded
  * with rrUSD and asks with LONG minted from the series (the matching SHORT stays in the maker wallet), both held
@@ -18,6 +19,7 @@
  *   node src/mm.ts                    # loop (default every 60 seconds)
  *   node src/mm.ts --once             # one pass
  *   node src/mm.ts --cancel-all       # pull every quote this maker has resting
+ *   node src/mm.ts --recover          # rebuild the order state from the chain (e.g. after losing the state file)
  *
  * Uses MM_PRIVATE_KEY. Resting order ids are kept in bots/.run/mm-state.json (git-ignored).
  */
@@ -39,13 +41,15 @@ const { values } = parseArgs({
     threshold: { type: "string", default: "150" }, // bps move in fair value that triggers a requote
     once: { type: "boolean", default: false },
     "cancel-all": { type: "boolean", default: false },
+    recover: { type: "boolean", default: false },
   },
 });
 
-const STOP_BEFORE_END = 3600n; // stop quoting one hour before the window ends
+const STOP_BEFORE_END = 3600n; // stop quoting one hour before a weekly window ends (two epochs for demo series)
 const REFERENCE_EPOCHS = HOURS_PER_WEEK; // reference price = mean of the last week of hourly prints
 const FUNDING_BUFFER_BPS = 12_000n; // top up 20% above what the new quotes need
-const STATE_FILE = resolve(ROOT, "bots", ".run", "mm-state.json");
+// Tests point MM_STATE_FILE elsewhere so they never share state with the live maker.
+const STATE_FILE = process.env.MM_STATE_FILE || resolve(ROOT, "bots", ".run", "mm-state.json");
 const scope = "mm";
 
 const dep = loadDeployment() as ReturnType<typeof loadDeployment> & {
@@ -79,7 +83,8 @@ interface BookState {
 type State = Record<Address, BookState>; // keyed by book
 
 function loadState(): State {
-  return existsSync(STATE_FILE) ? (JSON.parse(readFileSync(STATE_FILE, "utf8")) as State) : {};
+  const text = existsSync(STATE_FILE) ? readFileSync(STATE_FILE, "utf8").trim() : "";
+  return text ? (JSON.parse(text) as State) : {};
 }
 function saveState(s: State): void {
   mkdirSync(resolve(STATE_FILE, ".."), { recursive: true });
@@ -95,6 +100,7 @@ const read = <T>(address: Address, abi: unknown, functionName: string, args: rea
   ctx.pub.readContract({ address, abi: abi as typeof oracleAbi, functionName, args }) as Promise<T>;
 
 interface OnchainFeed {
+  epochLength: number;
   nextEpoch: bigint;
   firstEpoch: bigint;
   lastPrice: bigint;
@@ -128,7 +134,7 @@ async function liveMarkets(now: bigint): Promise<Market[]> {
       read<bigint>(series, seriesAbi, "cap"),
       read<Address>(series, seriesAbi, "long"),
     ]);
-    if (settled || isDemo || now >= windowEnd) continue;
+    if (settled || now >= windowEnd) continue;
     const symbol = await read<string>(long, erc20Abi, "symbol");
 
     const f = await read<OnchainFeed>(dep.RackOracle, oracleAbi, "getFeed", [feedId]);
@@ -164,7 +170,7 @@ async function liveMarkets(now: bigint): Promise<Market[]> {
       label: symbol,
       fair,
       maxPayout: (cap - floor) * epochs,
-      quoting: now < windowEnd - STOP_BEFORE_END,
+      quoting: now < windowEnd - (isDemo ? 2n * BigInt(f.epochLength) : STOP_BEFORE_END),
     });
   }
   return out;
@@ -341,8 +347,41 @@ async function cancelAll(): Promise<void> {
   }
 }
 
+/**
+ * Rebuilds the state file from the chain. Kuru numbers each book's orders from 1, so scanning `s_orders` until a
+ * long run of empty slots finds every order this maker still has resting. The next tick then cancels them all in
+ * one batch per book and places a single fresh ladder.
+ */
+async function recover(): Promise<void> {
+  const state = loadState();
+  const now = await chainTime(ctx.pub);
+  const CHUNK = 50;
+  for (const m of await liveMarkets(now)) {
+    const orders: RestingOrder[] = [];
+    for (let from = 1; ; from += CHUNK) {
+      const ids = Array.from({ length: CHUNK }, (_, i) => from + i);
+      const res = await ctx.pub.multicall({
+        allowFailure: false,
+        contracts: ids.map((id) => ({ address: m.book, abi: kuruOrderBookAbi, functionName: "s_orders", args: [id] }) as const),
+      });
+      let empty = 0;
+      res.forEach((o, i) => {
+        const [owner, size, , , , price, , isBuy] = o as readonly [Address, bigint, number, number, number, number, number, boolean];
+        if (BigInt(owner) === 0n) empty++;
+        else if (owner.toLowerCase() === me.toLowerCase() && size > 0n) orders.push({ id: ids[i], size: size.toString(), price, isBuy });
+      });
+      if (empty === CHUNK) break;
+    }
+    state[m.book] = { fair: "0", quotedAt: 0, orders };
+    log(scope, `${m.label}: recovered ${orders.length} resting orders`);
+  }
+  saveState(state);
+}
+
 log(scope, `maker ${me}, Kuru margin ${margin} [test liquidity]`);
-if (values["cancel-all"]) {
+if (values.recover) {
+  await recover();
+} else if (values["cancel-all"]) {
   await cancelAll();
 } else if (values.once) {
   await tick(DEFAULT_LEVELS);

@@ -35,10 +35,12 @@ export function Footer() {
                 <a className="hover:text-ink" href={`${EXPLORER}${deployment[k]}`} target="_blank" rel="noreferrer">{k}</a>
               </li>
             ))}
-            <li><Link className="hover:text-ink" href="/docs/credits">Image credits</Link></li>
           </ul>
         </div>
       </div>
+      <p className="mx-auto max-w-[1280px] px-4 pb-8 text-xs text-muted md:px-6">
+        Photos via Wikimedia Commons: CSIRO (CC BY 3.0), Carl Lender (CC BY 2.0), Derrick Coetzee (CC0). Toned and cropped.
+      </p>
     </footer>
   );
 }

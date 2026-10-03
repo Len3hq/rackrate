@@ -158,6 +158,11 @@ export function liveWeekly(markets: Market[] | undefined, now: number): Market[]
   return (markets ?? []).filter((m) => !m.isDemo && !m.settled && m.end > now && m.book).sort((a, b) => a.start - b.start);
 }
 
+/** The most recent demo series that is still trading (demo.sh creates one per session), if any. */
+export function liveDemo(markets: Market[] | undefined, now: number): Market | undefined {
+  return (markets ?? []).filter((m) => m.isDemo && !m.settled && m.end > now && m.book).sort((a, b) => b.start - a.start)[0];
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Oracle
 // ---------------------------------------------------------------------------------------------------------------
@@ -260,6 +265,8 @@ export function useOracle(hours = 72) {
 // Wallet
 // ---------------------------------------------------------------------------------------------------------------
 
+const DUST = 100n;
+
 export interface Holdings {
   usd: bigint;
   faucetReadyAt: number; // unix seconds; 0 = ready now
@@ -284,7 +291,8 @@ async function loadHoldings(client: PublicClient, account: Address, markets: Mar
   markets.forEach((m, i) => {
     const long = res[2 + i * 2] as bigint;
     const short = res[3 + i * 2] as bigint;
-    if (long > 0n || short > 0n) positions.set(m.series, { long, short });
+    // Leftovers under 0.0001 (e.g. from closing a position) are not shown.
+    if (long >= DUST || short >= DUST) positions.set(m.series, { long, short });
   });
   return { usd: res[0] as bigint, faucetReadyAt: last === 0 ? 0 : last + 86_400, positions };
 }
