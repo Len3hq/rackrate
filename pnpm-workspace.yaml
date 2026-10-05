@@ -1,6 +1,7 @@
 packages:
   - bots
   - app
+  - indexer
 
 allowBuilds:
   sharp: true

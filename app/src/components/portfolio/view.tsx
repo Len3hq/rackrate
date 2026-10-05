@@ -12,6 +12,7 @@ import { useTx } from "@/lib/tx";
 import { ConnectButton } from "../connect";
 import { Button, ButtonLink, Pill, Skeleton } from "../ui";
 import { ClosePanel } from "./close";
+import { History } from "./history";
 import { AddToken } from "../add-token";
 
 function status(m: Market, now: number) {
@@ -146,6 +147,7 @@ export function PortfolioView() {
           );
         })}
       </section>
+      {markets.data && <History markets={markets.data} />}
       <p className="mt-4 text-xs leading-relaxed text-muted">
         At settlement each LONG pays (weekly average minus floor) times 168 and each SHORT pays (cap minus average) times 168, in rrUSD. Before settlement, Close sells or buys back LONG on Kuru and redeems matched LONG and SHORT pairs for their full collateral.
       </p>

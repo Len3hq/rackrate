@@ -217,3 +217,20 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - Trade and fill history beyond the current state isn't shown. An indexer can add it later without changing the contracts.
 - The app depends on the RPC supporting state overrides. Monad testnet's public RPC does.
 - Users without a browser wallet must install one. There is no email login.
+
+### 015 — Envio HyperIndex for history, as an optional layer
+**Date:** 2026-10-05
+**Decision:**
+- An Envio HyperIndex indexer (`indexer/`) reads Monad testnet through HyperSync. It records markets with trading statistics, every Kuru fill, a per-wallet activity history, and finalized oracle hours.
+- Series and Kuru books are discovered from `SeriesCreated` and `MarketCreated` (`contractRegister`), so new weeks need no config change.
+- Kuru's `Trade` event signature was confirmed against a real fill's log, since Kuru's ABIs are not public under a license.
+- The app reads the indexer only when `NEXT_PUBLIC_INDEXER_URL` is set. Balances, positions and quotes still come straight from the chain.
+
+**Why:**
+- History (fills, past hedges and closes, settlements) cannot be rebuilt from current contract state. Event queries over a public RPC are too limited in range and rate.
+- Router hedges and buys are recorded once, from the router's own events. Direct wallet trades (closing a position) are recorded from the fill and merged per transaction. History therefore matches what the user did, not how many orders it touched.
+- Keeping the indexer optional means an indexer outage never blocks trading or settlement in the app.
+
+**Consequences:**
+- The indexer is a third deployed component (Envio Cloud's free development plan, or self-hosted) and needs a HyperSync API token.
+- This supersedes the "no indexer" part of 014. Chain reads remain the source of truth for anything a transaction depends on.

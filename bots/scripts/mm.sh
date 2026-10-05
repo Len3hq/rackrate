@@ -27,12 +27,18 @@ start() {
 }
 
 stop() {
+  # Stop the supervisor first so nothing restarts, then ask the maker to exit: it finishes its current tick
+  # (an interrupted tick could leave untracked orders on a book) and exits, so wait for that.
   if [ -f "$RUN/mm.pid" ]; then
-    pkill -P "$(cat "$RUN/mm.pid")" 2>/dev/null || true
-    kill "$(cat "$RUN/mm.pid")" 2>/dev/null && echo "mm stopped" || echo "mm not running"
+    kill "$(cat "$RUN/mm.pid")" 2>/dev/null || true
     rm -f "$RUN/mm.pid"
   fi
-  pkill -f "^node src/mm.ts" 2>/dev/null || true
+  pkill -TERM -f "node src/mm.ts --interval" 2>/dev/null || true
+  for _ in $(seq 1 120); do
+    pgrep -f "node src/mm.ts --interval" >/dev/null || { echo "mm stopped"; return; }
+    sleep 1
+  done
+  echo "mm still finishing a tick after 2 minutes; check: pgrep -fl 'node src/mm.ts'"
 }
 
 status() {

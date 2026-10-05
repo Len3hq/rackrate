@@ -59,3 +59,6 @@ export function windowLabel(start: number, end: number): string {
   if (end - start >= 86_400) return `${utcDay(start)} to ${utcDay(end)}`;
   return `${utcDay(start)}, ${hhmm(start)} to ${hhmm(end)} UTC`;
 }
+
+/** "Oct 5, 14:07 UTC" */
+export const utcTime = (ts: number) => `${utcDay(ts)}, ${hhmm(ts)} UTC`;

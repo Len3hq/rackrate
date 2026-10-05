@@ -34,6 +34,7 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 | `contracts/` | Solidity (Foundry): test dollar, oracle, series factory, hedge router, Kuru interfaces |
 | `cre/` | Chainlink CRE workflow (oracle publisher A) and its hourly runner |
 | `bots/` | Publisher bots, demo ticker, keeper, market maker |
+| `indexer/` | Envio HyperIndex indexer: markets, Kuru fills, wallet history, oracle hours |
 | `app/` | Next.js web app: landing page, trading, portfolio, oracle explorer and docs |
 | `docs/` | Architecture notes and the [decisions log](docs/DECISIONS.md) |
 
@@ -104,6 +105,23 @@ bots/scripts/e2e-fork.sh
 ```
 
 Each publisher commits a hash of its per-period seed onchain **before** the seed is used, and reveals the seed afterwards. Anyone can then re-derive every price it submitted.
+
+## Indexer (Envio HyperIndex)
+
+`indexer/` indexes Rackrate on Monad testnet through Envio's HyperSync. It records:
+- every series, with volume, last price, open pairs and settlement;
+- every fill on the weekly Kuru books, whose books are discovered automatically from `MarketCreated`;
+- a per-wallet history of hedges, buys, sells, redemptions and claims;
+- every finalized oracle hour.
+
+The app uses it for Portfolio history and recent trades when `NEXT_PUBLIC_INDEXER_URL` is set, and works without it. Locally, put `NEXT_PUBLIC_INDEXER_URL=http://localhost:8082/v1/graphql` in `app/.env.local`.
+
+```sh
+cp indexer/.env.example indexer/.env      # add a free HyperSync token from https://envio.dev/app/api-tokens
+pnpm -C indexer test                      # handler tests with simulated events (no network, no Docker)
+indexer/scripts/local.sh start            # local run (needs Docker): GraphQL at http://localhost:8082/v1/graphql
+indexer/scripts/local.sh status           # also: logs, stop
+```
 
 ## Keeper and weekly markets
 
@@ -200,6 +218,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [React Bits](https://reactbits.dev) components (Threads, CountUp, SpotlightCard) in `app/src/components/reactbits/`, used as part of the app under their MIT + Commons Clause license (see the `LICENSE.md` in that folder). They are not covered by this repository's MIT license.
 - Design guidance from [Taste Skill](https://github.com/Leonxlnx/taste-skill) (MIT).
 - Next.js, React, Tailwind CSS, Motion, wagmi, TanStack Query, OGL, Phosphor Icons and the Geist typefaces (open source licenses).
+- [Envio HyperIndex](https://envio.dev) (`envio` package, used as a dependency under Envio's EULA, not vendored).
 - Photographs from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). The site credits them in its footer.
 
 ## AI tool disclosure

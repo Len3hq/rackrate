@@ -56,9 +56,11 @@ show
 
 # Pick the second live book (next week's series) for the trades.
 read -r SERIES BOOK < <(books | sed -n 2p)
-echo "== trader hedges 1 GPU-week into the bid and buys \$100 of LONG from the ask on $BOOK"
+# 6 GPU-weeks: on a fork the live maker's older orders sit at the same prices and fill first (FIFO), so the
+# hedge must go past its 5-unit top bid to reach this test maker's order.
+echo "== trader hedges 6 GPU-weeks into the bids and buys \$100 of LONG from the ask on $BOOK"
 cast send "$USD" "approve(address,uint256)" "$HEDGE" 1000000000000 --private-key "$TRADER_KEY" "${RPC[@]}" >/dev/null
-cast send "$HEDGE" "hedge((address,address,uint256,uint256)[])" "[($SERIES,$BOOK,1000000,1)]" \
+cast send "$HEDGE" "hedge((address,address,uint256,uint256)[])" "[($SERIES,$BOOK,6000000,1)]" \
   --private-key "$TRADER_KEY" "${RPC[@]}" >/dev/null
 cast send "$HEDGE" "buyLongs((address,uint256,uint256)[])" "[($BOOK,100000000,1)]" \
   --private-key "$TRADER_KEY" "${RPC[@]}" >/dev/null

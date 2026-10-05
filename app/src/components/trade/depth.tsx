@@ -4,7 +4,9 @@ import { motion } from "motion/react";
 import type { Address } from "viem";
 import { useReadContract } from "wagmi";
 import { type Market, impliedRate } from "@/lib/data";
-import { num, usd } from "@/lib/format";
+import { num, toNum, usd, utcTime } from "@/lib/format";
+import { INDEXER_URL, useMarketTrades } from "@/lib/indexer";
+import { explorer } from "@/lib/wagmi";
 import { type Level, decodeL2, kuruDepthAbi } from "@/lib/kuru";
 import { Skeleton } from "../ui";
 
@@ -17,6 +19,7 @@ export function Depth({ markets, focus, setFocus }: { markets: Market[]; focus: 
     functionName: "getL2Book",
     query: { enabled: !!m?.book, refetchInterval: 15_000 },
   });
+  const trades = useMarketTrades(m?.series);
   if (!m) return null;
   const depth = book.data ? decodeL2(book.data) : null;
   const max = depth ? Math.max(1, ...depth.bids.map((l) => l.size), ...depth.asks.map((l) => l.size)) : 1;
@@ -64,6 +67,36 @@ export function Depth({ markets, focus, setFocus }: { markets: Market[]; focus: 
           </p>
           {depth.bids.map((l, i) => <Row key={`b${l.price}`} l={l} side="bid" i={i} />)}
           {depth.bids.length === 0 && <p className="px-3 py-2 text-sm text-muted">No bids</p>}
+        </div>
+      )}
+      {INDEXER_URL && (
+        <div className="mt-5 border-t border-line pt-4">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-medium">Recent trades</h3>
+            {trades.data?.Market_by_pk && (
+              <span className="text-xs text-muted">
+                {trades.data.Market_by_pk.tradeCount} fills · {usd(toNum(BigInt(trades.data.Market_by_pk.volumeQuote)), 0)} volume
+              </span>
+            )}
+          </div>
+          {trades.isError && <p className="mt-2 text-sm text-muted">Trade history is temporarily unavailable.</p>}
+          {!trades.data && !trades.isError && <Skeleton className="mt-2 h-16 w-full" />}
+          {trades.data && trades.data.Trade.length === 0 && <p className="mt-2 text-sm text-muted">No fills on this week yet.</p>}
+          {trades.data && trades.data.Trade.length > 0 && (
+            <ul className="mt-2">
+              {trades.data.Trade.map((t) => (
+                <li key={t.id} className="grid grid-cols-[1fr_auto_auto] gap-4 py-1 font-mono text-xs tnum">
+                  <a href={`${explorer}/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="text-muted hover:text-accent">
+                    {utcTime(t.timestamp).replace(" UTC", "")}
+                  </a>
+                  <span className={t.takerBuys ? "text-mint" : "text-rose"}>
+                    {t.takerBuys ? "Buy" : "Sell"} {usd(Number(BigInt(t.price) / 10n ** 14n) / 1e4)}
+                  </span>
+                  <span className="text-right">{num(toNum(BigInt(t.size)), 4)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </section>

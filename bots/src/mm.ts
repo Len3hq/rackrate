@@ -79,6 +79,7 @@ interface BookState {
   fair: string;
   quotedAt: number;
   orders: RestingOrder[];
+  scanFrom?: number; // lowest order id that can still be one of ours (chain reconciliation starts here)
 }
 type State = Record<Address, BookState>; // keyed by book
 
@@ -301,6 +302,8 @@ async function tick(levels: Level[]): Promise<void> {
     saveState(state);
   }
 
+  for (const m of markets.filter((x) => x.quoting)) await reconcile(state, m.book, m.label);
+
   // Decide which books to requote.
   const plans: { m: Market; quotes: Quotes; live: RestingOrder[]; why: string }[] = [];
   for (const m of markets.filter((x) => x.quoting)) {
@@ -323,16 +326,19 @@ async function tick(levels: Level[]): Promise<void> {
     if (delta > 0n) usdNeeded += delta;
   }
   await topUp(usd, usdNeeded);
+  // Each book is funded and requoted on its own, so one book that cannot be funded (e.g. a newly listed week
+  // while the wallet is low) never stops the others from being quoted.
   for (const p of plans) {
-    const delta = askSize(p.quotes.asks) - lockedBase(p.live);
-    if (delta > 0n) await topUp(p.m.long, delta, p.m.series);
-  }
-
-  for (const p of plans) {
-    const { placed, gasUsed } = await batchUpdate(p.m.book, p.quotes, p.live);
-    state[p.m.book] = { fair: p.m.fair.toString(), quotedAt: Date.now(), orders: placed };
-    saveState(state);
-    log(scope, `${p.m.label}: fair ${usdStr(p.m.fair)} (${p.why}); ${ladderStr(p.quotes)} [test liquidity, gas ${gasUsed}]`);
+    try {
+      const delta = askSize(p.quotes.asks) - lockedBase(p.live);
+      if (delta > 0n) await topUp(p.m.long, delta, p.m.series);
+      const { placed, gasUsed } = await batchUpdate(p.m.book, p.quotes, p.live);
+      state[p.m.book] = { fair: p.m.fair.toString(), quotedAt: Date.now(), orders: placed };
+      saveState(state);
+      log(scope, `${p.m.label}: fair ${usdStr(p.m.fair)} (${p.why}); ${ladderStr(p.quotes)} [test liquidity, gas ${gasUsed}]`);
+    } catch (err) {
+      log(scope, `${p.m.label}: skipped this tick: ${errorMessage(err)}`);
+    }
   }
 }
 
@@ -347,32 +353,64 @@ async function cancelAll(): Promise<void> {
   }
 }
 
+const SCAN_CHUNK = 50;
+const RECONCILE_MS = 10 * 60 * 1000;
+const lastReconcile = new Map<Address, number>();
+
 /**
- * Rebuilds the state file from the chain. Kuru numbers each book's orders from 1, so scanning `s_orders` until a
- * long run of empty slots finds every order this maker still has resting. The next tick then cancels them all in
- * one batch per book and places a single fresh ladder.
+ * This maker's resting orders on a book, read from the chain. Kuru numbers each book's orders from 1 and never
+ * reuses ids; cancelled and filled orders read as empty slots, so the scan always covers every id up to `maxKnown`
+ * and stops at the first fully empty batch beyond it.
  */
+async function scanOwn(book: Address, from: number, maxKnown: number): Promise<RestingOrder[]> {
+  const orders: RestingOrder[] = [];
+  for (let start = Math.max(1, from); ; start += SCAN_CHUNK) {
+    const ids = Array.from({ length: SCAN_CHUNK }, (_, i) => start + i);
+    const res = await ctx.pub.multicall({
+      allowFailure: false,
+      contracts: ids.map((id) => ({ address: book, abi: kuruOrderBookAbi, functionName: "s_orders", args: [id] }) as const),
+    });
+    let empty = 0;
+    res.forEach((o, i) => {
+      const [owner, size, , , , price, , isBuy] = o as readonly [Address, bigint, number, number, number, number, number, boolean];
+      if (BigInt(owner) === 0n) empty++;
+      else if (owner.toLowerCase() === me.toLowerCase() && size > 0n) orders.push({ id: ids[i], size: size.toString(), price, isBuy });
+    });
+    if (empty === SCAN_CHUNK && start > maxKnown) break;
+  }
+  return orders;
+}
+
+/**
+ * Folds any of this maker's resting orders that the state file does not know about (e.g. placed by a process that
+ * was stopped before it could save) into the book's state and forces a requote, which cancels them.
+ */
+async function reconcile(state: State, book: Address, label: string): Promise<void> {
+  const st = state[book];
+  if (!st || Date.now() - (lastReconcile.get(book) ?? 0) < RECONCILE_MS) return;
+  const ids = st.orders.map((o) => o.id);
+  const from = st.scanFrom ?? 1; // first reconcile of a book scans it fully
+  const onChain = await scanOwn(book, from, ids.length ? Math.max(...ids) : 0);
+  lastReconcile.set(book, Date.now());
+  const known = new Set(ids);
+  const extra = onChain.filter((o) => !known.has(o.id));
+  if (extra.length > 0) {
+    st.orders = [...st.orders, ...extra];
+    st.fair = "0"; // requote: the batch update cancels every tracked order, including these
+    log(scope, `${label}: found ${extra.length} untracked resting orders, replacing them`);
+  }
+  st.scanFrom = onChain.length ? Math.min(...onChain.map((o) => o.id)) : Math.max(from, ...ids, 0) + 1;
+  saveState(state);
+}
+
+/** Rebuilds the state file from the chain (e.g. after losing it). The next tick cancels and requotes. */
 async function recover(): Promise<void> {
   const state = loadState();
   const now = await chainTime(ctx.pub);
-  const CHUNK = 50;
   for (const m of await liveMarkets(now)) {
-    const orders: RestingOrder[] = [];
-    for (let from = 1; ; from += CHUNK) {
-      const ids = Array.from({ length: CHUNK }, (_, i) => from + i);
-      const res = await ctx.pub.multicall({
-        allowFailure: false,
-        contracts: ids.map((id) => ({ address: m.book, abi: kuruOrderBookAbi, functionName: "s_orders", args: [id] }) as const),
-      });
-      let empty = 0;
-      res.forEach((o, i) => {
-        const [owner, size, , , , price, , isBuy] = o as readonly [Address, bigint, number, number, number, number, number, boolean];
-        if (BigInt(owner) === 0n) empty++;
-        else if (owner.toLowerCase() === me.toLowerCase() && size > 0n) orders.push({ id: ids[i], size: size.toString(), price, isBuy });
-      });
-      if (empty === CHUNK) break;
-    }
-    state[m.book] = { fair: "0", quotedAt: 0, orders };
+    const known = state[m.book]?.orders.map((o) => o.id) ?? [];
+    const orders = await scanOwn(m.book, 1, known.length ? Math.max(...known) : 0);
+    state[m.book] = { fair: "0", quotedAt: 0, orders, scanFrom: orders.length ? Math.min(...orders.map((o) => o.id)) : undefined };
     log(scope, `${m.label}: recovered ${orders.length} resting orders`);
   }
   saveState(state);
@@ -386,12 +424,27 @@ if (values.recover) {
 } else if (values.once) {
   await tick(DEFAULT_LEVELS);
 } else {
-  for (;;) {
+  // Stop only between ticks: a tick interrupted after an order transaction but before the state file is saved
+  // would leave untracked orders on the book.
+  let stopping = false;
+  let wake: (() => void) | undefined;
+  for (const sig of ["SIGTERM", "SIGINT"] as const) {
+    process.on(sig, () => {
+      stopping = true;
+      wake?.();
+    });
+  }
+  while (!stopping) {
     try {
       await tick(DEFAULT_LEVELS);
     } catch (err) {
       log(scope, `tick failed, retrying next interval: ${errorMessage(err)}`);
     }
-    await new Promise((r) => setTimeout(r, Number(values.interval) * 1000));
+    if (stopping) break;
+    await new Promise<void>((r) => {
+      wake = r;
+      setTimeout(r, Number(values.interval) * 1000);
+    });
   }
+  log(scope, "stopped cleanly");
 }

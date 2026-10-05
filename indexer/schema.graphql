@@ -1,0 +1,71 @@
+# One weekly (or demo) series and its market statistics. id = series address (lowercase).
+type Market {
+  id: ID!
+  feedId: String!
+  startEpoch: BigInt!
+  endEpoch: BigInt!
+  floor: BigInt! # micro-dollars per GPU-hour
+  cap: BigInt!
+  isDemo: Boolean!
+  long: String!
+  short: String!
+  book: String
+  pairsMinted: BigInt!
+  pairsRedeemed: BigInt!
+  tradeCount: Int!
+  volumeLong: BigInt! # LONG traded on the book (6 decimals)
+  volumeQuote: BigInt! # rrUSD traded on the book (6 decimals)
+  lastPrice: BigInt # last fill, rrUSD per LONG with 18 decimals (Kuru's precision)
+  settled: Boolean!
+  settlementKind: Int # 1 full, 2 partial, 3 no data
+  settlementPrice: BigInt # micro-dollars per GPU-hour
+  createdAt: Int!
+}
+
+# Maps a Kuru book back to its series.
+type Book {
+  id: ID!
+  market: String!
+}
+
+# A fill on a week's Kuru book. id = txHash_logIndex.
+type Trade {
+  id: ID!
+  market: String! @index
+  book: String!
+  orderId: BigInt!
+  maker: String! @index
+  taker: String! # the contract or wallet that took liquidity (the HedgeRouter for app hedges and buys)
+  trader: String! @index # transaction origin
+  takerBuys: Boolean! # true when the taker bought LONG
+  price: BigInt! # rrUSD per LONG, 18 decimals
+  size: BigInt! # LONG filled, 6 decimals
+  quote: BigInt! # rrUSD value of the fill, 6 decimals
+  timestamp: Int! @index
+  blockNumber: Int!
+  txHash: String!
+}
+
+# A user action, for per-wallet history. kind: HEDGE, BUY, SELL, MINT, REDEEM, CLAIM.
+type Activity {
+  id: ID!
+  account: String! @index
+  market: String! @index
+  kind: String!
+  units: BigInt! # LONG/SHORT units involved (6 decimals)
+  amountIn: BigInt! # rrUSD paid (6 decimals)
+  amountOut: BigInt! # rrUSD received (6 decimals; for BUY, LONG received)
+  timestamp: Int! @index
+  txHash: String!
+}
+
+# One finalized oracle hour. id = feedId_epoch.
+type OraclePrint {
+  id: ID!
+  feedId: String! @index
+  epoch: BigInt! @index
+  status: Int! # 1 printed, 2 missing, 3 out of bounds, 4 jump rejected
+  price: BigInt! # micro-dollars per GPU-hour (0 unless printed)
+  submissions: Int!
+  timestamp: Int!
+}
