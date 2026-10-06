@@ -4,5 +4,6 @@ packages:
   - indexer
 
 allowBuilds:
+  esbuild: false # indexer tests only; its platform binary installs as an optional dependency
   sharp: true
   unrs-resolver: false
