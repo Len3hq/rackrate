@@ -187,6 +187,23 @@ cre/scripts/run.sh start     # hourly, in the background (also: status, logs, st
 - The workflow runs in **simulation mode** (`--broadcast`, through Chainlink's MockKeystoneForwarder) while CRE deploy access is pending.
 - Moving it to Chainlink's network is a deploy plus `CreReceiver.setForwarder(<KeystoneForwarder>)`. No contract redeploy is needed.
 
+## Hosting
+
+| Component | Where | Build | Start |
+|---|---|---|---|
+| Publisher B | Railway | `bots/Dockerfile` | `node src/publisher.ts --key PUBLISHER_B_PRIVATE_KEY --feeds H100 --interval 60` |
+| Publisher C | Railway | `bots/Dockerfile` | `node src/publisher.ts --key PUBLISHER_C_PRIVATE_KEY --feeds H100 --interval 60 --skip-finalize --delay 20` |
+| Keeper | Railway | `bots/Dockerfile` | `node src/keeper.ts --feeds H100 --weeks 4 --interval 300` |
+| Market maker | Railway, volume at `/data` | `bots/Dockerfile` | `node src/mm.ts --interval 60` |
+| Web app | Railway (root directory `app`) or Vercel | Next.js | `npm start` |
+| Indexer | Envio Cloud (root directory `indexer`) | `config.yaml` | managed |
+| CRE publisher | Workflow owner's machine until CRE deploy access | `cre/scripts/run.sh` | hourly |
+
+Notes:
+- The bots image ships the ABIs from `app/src/lib/generated.ts`, so it needs no Solidity toolchain.
+- **Secrets** are service variables, never in the repo: `BOT_RPC_URL`, `PRICE_MASTER_SECRET` and each service's key (`PUBLISHER_B_PRIVATE_KEY`, `PUBLISHER_C_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY` for the keeper, `MM_PRIVATE_KEY`). The market maker also gets `MM_STATE_FILE=/data/mm-state.json`.
+- **One process per key.** Stop a bot on any other host before starting it on Railway, or the two will collide on nonces. A market maker that starts without a state file adopts its resting orders from the chain first.
+
 ## Network
 
 | | |

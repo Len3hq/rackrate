@@ -426,6 +426,9 @@ if (values.recover) {
 } else {
   // Stop only between ticks: a tick interrupted after an order transaction but before the state file is saved
   // would leave untracked orders on the book.
+  // A maker starting without a state file (a new host, or a lost volume) first adopts the orders it already has
+  // resting onchain, so it replaces them instead of quoting a second ladder beside them.
+  if (Object.keys(loadState()).length === 0) await recover();
   let stopping = false;
   let wake: (() => void) | undefined;
   for (const sig of ["SIGTERM", "SIGINT"] as const) {

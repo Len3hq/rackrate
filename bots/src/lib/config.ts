@@ -42,11 +42,21 @@ export function loadDeployment(chainId = 10143): Deployment {
   return JSON.parse(readFileSync(file, "utf8")) as Deployment;
 }
 
-/** ABI from Foundry build output. Run `forge build` in contracts/ first. */
+/**
+ * ABIs the app ships (app/src/lib/generated.ts, refreshed by `pnpm -C app sync-abis`). Used when Foundry's build
+ * output is absent, e.g. in the bots' Docker image, so deployments don't need a Solidity toolchain.
+ */
+const GENERATED = resolve(ROOT, "app", "src", "lib", "generated.ts");
+const shipped: Record<string, unknown> | null =
+  existsSync(resolve(CONTRACTS_DIR, "out")) || !existsSync(GENERATED) ? null : await import(GENERATED);
+
+/** ABI from Foundry build output (`forge build` in contracts/), else from the ABIs the app ships. */
 export function loadAbi(contract: string): Abi {
   const file = resolve(CONTRACTS_DIR, "out", `${contract}.sol`, `${contract}.json`);
-  if (!existsSync(file)) throw new Error(`ABI not found: ${file} (run \`forge build\` in contracts/)`);
-  return JSON.parse(readFileSync(file, "utf8")).abi as Abi;
+  if (existsSync(file)) return JSON.parse(readFileSync(file, "utf8")).abi as Abi;
+  const abi = shipped?.[`${contract.charAt(0).toLowerCase()}${contract.slice(1)}Abi`];
+  if (abi) return abi as Abi;
+  throw new Error(`ABI for ${contract} not found: run \`forge build\` in contracts/`);
 }
 
 export function log(scope: string, msg: string): void {
