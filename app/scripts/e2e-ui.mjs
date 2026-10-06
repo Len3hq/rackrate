@@ -107,13 +107,28 @@ try {
     await button("Get 10,000 test rrUSD").click();
     await confirmed();
   });
-  await step("approve rrUSD", async () => {
+  if (phase !== "settle") await step("approve rrUSD", async () => {
     await button("Approve rrUSD").waitFor({ timeout: 30_000 });
     await button("Approve rrUSD").click();
     await confirmed();
   });
 
-  if (phase === "weekly") {
+  if (phase === "settle") {
+    await step("Trade lists W41 under Settled weeks", async () => {
+      const row = page.locator("tr", { hasText: "2026-W41" });
+      await row.waitFor({ timeout: 120_000 });
+      console.log(`\n    ${(await row.innerText()).replace(/\s+/g, " ")}`);
+    });
+    await step("Portfolio shows the settled position and claims it", async () => {
+      await page.getByRole("link", { name: "Portfolio" }).first().click();
+      await page.getByText(/Settled at/).first().waitFor({ timeout: 120_000 });
+      const claim = button(/^Claim \$/);
+      console.log(`\n    button: ${await claim.innerText()}`);
+      await claim.click();
+      await confirmed();
+      await page.getByText("No positions yet").waitFor({ timeout: 90_000 });
+    });
+  } else if (phase === "weekly") {
     await step("hedge 1 GPU for W41 and W42", async () => {
       await page.locator("fieldset").getByRole("button", { name: "W42", exact: true }).click();
       await button(/^Hedge 2 weeks$/).waitFor({ timeout: 120_000 }); // fork quotes load state lazily

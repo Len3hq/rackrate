@@ -7,7 +7,11 @@
 #           hedge it in the app, wait for the window to end, then settle and claim from Portfolio.
 #
 #   app/scripts/e2e-fork.sh            # both phases (~8 minutes)
-#   app/scripts/e2e-fork.sh weekly     # or: demo
+#   app/scripts/e2e-fork.sh weekly     # or: demo, settle
+#
+#   settle: positions in the real W41 series, then the fork's clock moves past the window end and the grace
+#           period; the keeper settles it, Trade lists it under Settled weeks, and Portfolio's Claim pays out
+#           exactly what the contract owes.
 #
 # Requires anvil (Foundry 1.8+), Google Chrome, `forge build` in contracts/, and contracts/.env with
 # MONAD_RPC_URL(_PRIVATE) and DEPLOYER_PRIVATE_KEY. Test keys are anvil's public default accounts.
@@ -74,6 +78,45 @@ for phase in "${PHASES[@]}"; do
       (cd "$ROOT/bots" && node src/publisher.ts --key "PUBLISHER_${p}_PRIVATE_KEY" --feeds "$FEED" --interval 3 >"$LOGS/pub$p.log" 2>&1) &
     done
     TEST_ACCOUNT=0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 node "$APP_DIR/scripts/e2e-ui.mjs" demo "$LOGS"
+  elif [ "$phase" = settle ]; then
+    # Rehearses W41's settlement on the real series: positions now, then time moves past the window end.
+    # anvil account #9 trades; the deployer key only pays gas for permissionless oracle finalization.
+    export BOT_RPC_URL="$FORK_RPC"
+    KEY9=0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+    ACC9=0xa0Ee7A142d267C1f36714E4a8F75612F20a79720
+    REGISTRY=$(node -e "console.log(require('$DEP').MarketRegistry)"); ORACLE=$(node -e "console.log(require('$DEP').RackOracle)")
+    W41=$(cast call "$REGISTRY" "allSeriesWithBooks(uint256)(address)" 0 "${RPC[@]}")
+    W41_BOOK=$(cast call "$REGISTRY" "bookOf(address)(address)" "$W41" "${RPC[@]}")
+    FEED=$(cast call "$W41" "feedId()(bytes32)" "${RPC[@]}")
+    cast send "$USD" "transfer(address,uint256)" "$ACC9" 5000000000 --private-key "$DEPLOYER_PRIVATE_KEY" "${RPC[@]}" >/dev/null
+    cast send "$USD" "approve(address,uint256)" "$ROUTER" 5000000000 --private-key "$KEY9" "${RPC[@]}" >/dev/null
+    cast send "$ROUTER" "hedge((address,address,uint256,uint256)[])" "[($W41,$W41_BOOK,1000000,1)]" --private-key "$KEY9" "${RPC[@]}" >/dev/null
+    cast send "$ROUTER" "buyLongs((address,uint256,uint256)[])" "[($W41_BOOK,100000000,1)]" --private-key "$KEY9" "${RPC[@]}" >/dev/null
+    echo "account #9 hedged 1 GPU-week of W41 and bought \$100 of LONG"
+
+    finalize_all() { while cast send "$ORACLE" "finalize(bytes32,uint64)" "$FEED" 100 --private-key "$DEPLOYER_PRIVATE_KEY" "${RPC[@]}" >/dev/null 2>&1; do :; done; }
+    warp_to() { local now; now=$(cast block latest -f timestamp "${RPC[@]}"); cast rpc evm_increaseTime $(($1 - now)) "${RPC[@]}" >/dev/null; cast rpc evm_mine "${RPC[@]}" >/dev/null; }
+    END=$(cast call "$W41" "windowEnd()(uint256)" "${RPC[@]}" | awk '{print $1}')
+    warp_to $((END + 900)); finalize_all
+    echo "warped past the window end; oracle finalized through epoch $(cast call "$W41" "endEpoch()(uint64)" "${RPC[@]}")"
+    (cd "$ROOT/bots" && node src/settlement.ts | sed -n '2,5p')
+    (cd "$ROOT/bots" && node src/keeper.ts --once --weeks 0 2>&1 | grep -E "settled|coverage" ) | tee "$LOGS/keeper1.log"
+    grep -q "coverage below 90%" "$LOGS/keeper1.log" || { echo "FAIL: expected the keeper to wait for the grace period"; exit 1; }
+    warp_to $((END + 86400 + 900)); finalize_all
+    (cd "$ROOT/bots" && node src/keeper.ts --once --weeks 0 2>&1 | grep -E "settled|coverage") | tee "$LOGS/keeper2.log"
+    grep -qi "$W41: settled at" "$LOGS/keeper2.log" || { echo "FAIL: keeper did not settle W41 after the grace period"; exit 1; }
+    (cd "$ROOT/bots" && node src/settlement.ts | sed -n '2,3p')
+
+    LONG=$(cast call "$W41" "long()(address)" "${RPC[@]}"); SHORT=$(cast call "$W41" "short()(address)" "${RPC[@]}")
+    L=$(cast call "$LONG" "balanceOf(address)(uint256)" "$ACC9" "${RPC[@]}" | awk '{print $1}'); S=$(cast call "$SHORT" "balanceOf(address)(uint256)" "$ACC9" "${RPC[@]}" | awk '{print $1}')
+    LP=$(cast call "$W41" "longPayoutPerUnit()(uint256)" "${RPC[@]}" | awk '{print $1}'); SP=$(cast call "$W41" "shortPayoutPerUnit()(uint256)" "${RPC[@]}" | awk '{print $1}')
+    EXPECTED=$(node -e "console.log(((BigInt('$L')*BigInt('$LP'))/1000000n + (BigInt('$S')*BigInt('$SP'))/1000000n).toString())")
+    BEFORE=$(cast call "$USD" "balanceOf(address)(uint256)" "$ACC9" "${RPC[@]}" | awk '{print $1}')
+    TEST_ACCOUNT=$ACC9 node "$APP_DIR/scripts/e2e-ui.mjs" settle "$LOGS"
+    AFTER=$(cast call "$USD" "balanceOf(address)(uint256)" "$ACC9" "${RPC[@]}" | awk '{print $1}')
+    GOT=$(node -e "console.log((BigInt('$AFTER')-BigInt('$BEFORE')).toString())")
+    echo "claim paid $GOT, contract owed $EXPECTED (LONG $L x $LP + SHORT $S x $SP, 6 decimals)"
+    [ "$GOT" = "$EXPECTED" ] || { echo "FAIL: claimed amount differs"; exit 1; }
   else
     node "$APP_DIR/scripts/e2e-ui.mjs" weekly "$LOGS"
   fi

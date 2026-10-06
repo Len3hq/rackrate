@@ -54,6 +54,7 @@ pnpm install
 pnpm -C app dev                     # http://localhost:3000
 pnpm -C app sync-abis               # after changing contracts: refresh ABIs and addresses from contracts/out
 app/scripts/e2e-fork.sh             # browser end-to-end test on a local fork (needs anvil and Chrome; ~8 min)
+app/scripts/e2e-fork.sh settle      # rehearse W41's settlement: time moves past the window, keeper settles, app claims
 ```
 
 The end-to-end test drives the real UI with a test wallet against a fork of Monad testnet. It covers faucet, approval, a two-week hedge, a purchase, closing both positions (buy-back plus redeem, and redeem plus sell), and a demo week that is hedged, settled and claimed in the app.
@@ -139,6 +140,7 @@ The keeper keeps the market running:
 
 ```sh
 bots/scripts/keeper.sh start H100 4    # also: status, logs, stop
+pnpm -C bots settlement                # each week's coverage, when it can settle, and the result once settled
 pnpm -C bots exec node src/keeper.ts --once
 ```
 

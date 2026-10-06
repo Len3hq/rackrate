@@ -8,7 +8,8 @@
     "keeper": "node src/keeper.ts",
     "mm": "node src/mm.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.ts"
+    "test": "node --test test/*.test.ts",
+    "settlement": "node src/settlement.ts"
   },
   "dependencies": {
     "viem": "^2.57.2"
