@@ -6,6 +6,7 @@ import { useState } from "react";
 import { WagmiProvider } from "wagmi";
 import { config } from "@/lib/wagmi";
 import { ToastProvider } from "./toast";
+import { TourProvider } from "./tour";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -16,7 +17,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {/* Every Motion animation collapses to instant when the OS asks for reduced motion. */}
         <MotionConfig reducedMotion="user">
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <TourProvider>{children}</TourProvider>
+          </ToastProvider>
         </MotionConfig>
       </QueryClientProvider>
     </WagmiProvider>

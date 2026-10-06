@@ -1,6 +1,6 @@
 "use client";
 
-import { List, X } from "@phosphor-icons/react";
+import { List, Question, X } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { ConnectButton } from "./connect";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
+import { useTour } from "./tour";
 
 const LINKS = [
   { href: "/trade", label: "Trade" },
@@ -19,6 +20,7 @@ const LINKS = [
 export function Nav() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const tour = useTour();
   useEffect(() => setOpen(false), [path]);
 
   return (
@@ -39,6 +41,15 @@ export function Nav() {
           })}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={tour.open}
+            aria-label="How Rackrate works"
+            title="How Rackrate works"
+            className="grid h-9 w-9 place-items-center rounded-full border border-line text-ink-2 transition hover:border-line-strong hover:text-ink active:scale-95"
+          >
+            <Question size={16} />
+          </button>
           <ThemeToggle />
           <ConnectButton className="hidden sm:block" />
           <button className="grid h-9 w-9 place-items-center rounded-full border border-line md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>

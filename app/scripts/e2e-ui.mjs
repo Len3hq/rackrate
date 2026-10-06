@@ -97,8 +97,21 @@ const connect = async () => {
 };
 
 try {
-  await step("open trade page and quote", async () => {
+  await step("open trade page: first-visit tour", async () => {
     await page.goto(`${APP}/trade`, { waitUntil: "load" });
+    const tour = page.getByRole("dialog");
+    await tour.waitFor({ timeout: 30_000 });
+    if (phase === "weekly") {
+      // Walk the whole tour once: six steps, then it closes and stays closed.
+      for (let i = 1; i < 6; i++) await tour.getByRole("button", { name: "Next" }).click();
+      await tour.getByText("6 of 6").waitFor();
+      await tour.getByRole("button", { name: "Start trading" }).click();
+    } else {
+      await tour.getByRole("button", { name: "Skip tour" }).click();
+    }
+    await tour.waitFor({ state: "detached", timeout: 10_000 });
+  });
+  await step("quote loads", async () => {
     await page.getByText("Locked revenue").waitFor({ timeout: 120_000 });
   });
   await step("connect test wallet", connect);
