@@ -21,8 +21,19 @@ const PRECONNECT = [origin(process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://tes
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+/** Public site URL for social previews. Accepts a bare domain; an unusable value never fails the build. */
+function siteUrl(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw.includes("://") ? raw : `https://${raw}`);
+    } catch {}
+  }
+  return new URL("http://localhost:3000");
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: siteUrl(),
   title: { default: "Rackrate | GPU rental-rate forwards on Monad", template: "%s | Rackrate" },
   description:
     "Lock in next week's H100 rental rate. Fully collateralized weekly GPU-hour forwards, traded on Kuru's onchain order book on Monad.",

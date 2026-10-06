@@ -17,13 +17,18 @@ CRE_BIN="${CRE_BIN:-$(command -v cre || echo "$HOME/.cre/bin/cre")}"
 OFFSET=90 # seconds after the hour: after publishers B (~+10 s) and C (~+30 s), so this run usually lands last
 
 load_env() {
-  set -a
-  # shellcheck disable=SC1091
-  . ../contracts/.env
-  set +a
-  export CRE_MONAD_RPC_URL="${MONAD_RPC_URL_PRIVATE:-$MONAD_RPC_URL}"
-  export CRE_PRICE_MASTER_SECRET="$PRICE_MASTER_SECRET"
-  export CRE_ETH_PRIVATE_KEY="${CRE_SIMULATOR_PRIVATE_KEY#0x}"
+  # Locally the values come from contracts/.env; a hosted runner (cre/Dockerfile) sets the CRE_* variables itself.
+  if [ -f ../contracts/.env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ../contracts/.env
+    set +a
+    export CRE_MONAD_RPC_URL="${MONAD_RPC_URL_PRIVATE:-$MONAD_RPC_URL}"
+    export CRE_PRICE_MASTER_SECRET="$PRICE_MASTER_SECRET"
+    export CRE_ETH_PRIVATE_KEY="${CRE_SIMULATOR_PRIVATE_KEY#0x}"
+  fi
+  export CRE_ETH_PRIVATE_KEY="${CRE_ETH_PRIVATE_KEY#0x}"
+  : "${CRE_MONAD_RPC_URL:?missing}" "${CRE_PRICE_MASTER_SECRET:?missing}" "${CRE_ETH_PRIVATE_KEY:?missing}"
 }
 
 once() {
@@ -34,6 +39,7 @@ once() {
 }
 
 loop() {
+  echo "$(date -u +%FT%TZ) [cre-runner] started, one run every hour at HH:01:30 UTC"
   while true; do
     now=$(date -u +%s)
     next=$(((now / 3600 + 1) * 3600 + OFFSET))

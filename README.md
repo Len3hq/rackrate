@@ -197,11 +197,12 @@ cre/scripts/run.sh start     # hourly, in the background (also: status, logs, st
 | Market maker | Railway, volume at `/data` | `bots/Dockerfile` | `node src/mm.ts --interval 60` |
 | Web app | Railway (root directory `app`) or Vercel | Next.js | `npm start` |
 | Indexer | Envio Cloud (root directory `indexer`) | `config.yaml` | managed |
-| CRE publisher | Workflow owner's machine until CRE deploy access | `cre/scripts/run.sh` | hourly |
+| CRE publisher | Railway, simulation mode until CRE deploy access | `cre/Dockerfile` | image default (`scripts/run.sh loop`, hourly) |
 
 Notes:
 - The bots image ships the ABIs from `app/src/lib/generated.ts`, so it needs no Solidity toolchain.
 - **Secrets** are service variables, never in the repo: `BOT_RPC_URL`, `PRICE_MASTER_SECRET` and each service's key (`PUBLISHER_B_PRIVATE_KEY`, `PUBLISHER_C_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY` for the keeper, `MM_PRIVATE_KEY`). The market maker also gets `MM_STATE_FILE=/data/mm-state.json`.
+- The **CRE publisher** takes `CRE_API_KEY` (a Chainlink API key, so the CLI needs no browser login), `CRE_MONAD_RPC_URL`, `CRE_PRICE_MASTER_SECRET` (the same value as `PRICE_MASTER_SECRET`) and `CRE_ETH_PRIVATE_KEY` (the simulator key that pays for the forwarder transaction).
 - **One process per key.** Stop a bot on any other host before starting it on Railway, or the two will collide on nonces. A market maker that starts without a state file adopts its resting orders from the chain first.
 
 ## Network
