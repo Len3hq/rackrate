@@ -85,3 +85,54 @@ export function useMarketTrades(series: Address | undefined) {
       ),
   });
 }
+
+export interface ProtocolStats {
+  tradeCount: number;
+  volumeQuote: string; // rrUSD, 6 decimals
+  hedgeCount: number;
+  hedgedUnits: string; // GPU-weeks, 6 decimals
+  buyCount: number;
+  traderCount: number;
+}
+
+/** Running protocol totals kept by the indexer (one row). */
+export function useProtocolStats() {
+  return useQuery({
+    queryKey: ["indexer", "protocol"],
+    enabled: !!INDEXER_URL,
+    refetchInterval: 30_000,
+    queryFn: async () =>
+      (
+        await gql<{ Protocol_by_pk: ProtocolStats | null }>(
+          `query Protocol { Protocol_by_pk(id: "rackrate") { tradeCount volumeQuote hedgeCount hedgedUnits buyCount traderCount } }`,
+          {},
+        )
+      ).Protocol_by_pk,
+  });
+}
+
+export interface OraclePrintRow {
+  epoch: string;
+  status: number;
+  price: string; // micro-dollars per GPU-hour
+}
+
+/** Finalized oracle hours from `fromEpoch` on, oldest first, in one query. */
+export function useOraclePrints(feedId: string, fromEpoch: number | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ["indexer", "oracle", feedId, fromEpoch],
+    enabled: !!INDEXER_URL && enabled && fromEpoch !== undefined,
+    refetchInterval: 60_000,
+    queryFn: async () =>
+      (
+        await gql<{ OraclePrint: OraclePrintRow[] }>(
+          `query Prints($feed: String!, $from: numeric!) {
+            OraclePrint(where: { feedId: { _eq: $feed }, epoch: { _gte: $from } }, order_by: { epoch: asc }, limit: 500) {
+              epoch status price
+            }
+          }`,
+          { feed: feedId.toLowerCase(), from: String(fromEpoch) },
+        )
+      ).OraclePrint,
+  });
+}

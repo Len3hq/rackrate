@@ -112,9 +112,16 @@ Each publisher commits a hash of its per-period seed onchain **before** the seed
 - every series, with volume, last price, open pairs and settlement;
 - every fill on the weekly Kuru books, whose books are discovered automatically from `MarketCreated`;
 - a per-wallet history of hedges, buys, sells, redemptions and claims;
-- every finalized oracle hour.
+- every finalized oracle hour;
+- running protocol totals (volume, fills, GPU-weeks hedged, distinct traders).
 
-The app uses it for Portfolio history and recent trades when `NEXT_PUBLIC_INDEXER_URL` is set, and works without it. Locally, put `NEXT_PUBLIC_INDEXER_URL=http://localhost:8082/v1/graphql` in `app/.env.local`.
+The app uses it, when `NEXT_PUBLIC_INDEXER_URL` is set, for:
+- Portfolio history;
+- recent trades on each book;
+- the landing page's volume and hedge totals;
+- the oracle chart's 3-day and 7-day history (one query instead of many chain reads).
+
+Without it, or while it is unreachable, the same views fall back to chain reads. Locally, put `NEXT_PUBLIC_INDEXER_URL=http://localhost:8082/v1/graphql` in `app/.env.local`.
 
 ```sh
 cp indexer/.env.example indexer/.env      # add a free HyperSync token from https://envio.dev/app/api-tokens

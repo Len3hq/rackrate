@@ -2,12 +2,47 @@
  * Rackrate event handlers. Builds markets with live trading statistics, every fill on the weekly Kuru books,
  * a per-wallet activity history, and the finalized oracle hours. Addresses are lowercase (config.yaml).
  */
-import { indexer } from "envio";
+import { type EvmOnEventContext, indexer } from "envio";
 
 /** The deployed HedgeRouter: fills it takes are already recorded as HEDGE / BUY activity from its own events. */
 const HEDGE_ROUTER = "0xe5eb6018cedc90204a7b27ff5df083dfa781226c";
 
 const fields = { transaction: ["hash"], block: ["timestamp"] } as const;
+const PROTOCOL_ID = "rackrate";
+
+type Ctx = EvmOnEventContext;
+
+/** Applies a change to the protocol totals, creating the row on first use. */
+async function bumpProtocol(
+  context: Ctx,
+  change: Partial<{ tradeCount: number; volumeQuote: bigint; hedgeCount: number; hedgedUnits: bigint; buyCount: number; traderCount: number }>,
+) {
+  const p = (await context.Protocol.get(PROTOCOL_ID)) ?? {
+    id: PROTOCOL_ID,
+    tradeCount: 0,
+    volumeQuote: 0n,
+    hedgeCount: 0,
+    hedgedUnits: 0n,
+    buyCount: 0,
+    traderCount: 0,
+  };
+  context.Protocol.set({
+    ...p,
+    tradeCount: p.tradeCount + (change.tradeCount ?? 0),
+    volumeQuote: p.volumeQuote + (change.volumeQuote ?? 0n),
+    hedgeCount: p.hedgeCount + (change.hedgeCount ?? 0),
+    hedgedUnits: p.hedgedUnits + (change.hedgedUnits ?? 0n),
+    buyCount: p.buyCount + (change.buyCount ?? 0),
+    traderCount: p.traderCount + (change.traderCount ?? 0),
+  });
+}
+
+/** Counts a wallet once, the first time it hedges, buys or sells. Returns 1 for a new trader. */
+async function seeTrader(context: Ctx, account: string, timestamp: number): Promise<number> {
+  if (await context.Trader.get(account)) return 0;
+  context.Trader.set({ id: account, firstSeen: timestamp });
+  return 1;
+}
 const eventId = (hash: string, logIndex: number) => `${hash}_${logIndex}`;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -133,6 +168,8 @@ indexer.onEvent({ contract: "HedgeRouter", event: "Hedged", fields }, async ({ e
     timestamp: event.block.timestamp,
     txHash: event.transaction.hash,
   });
+  const newTrader = await seeTrader(context, event.params.account, event.block.timestamp);
+  await bumpProtocol(context, { hedgeCount: 1, hedgedUnits: event.params.units, traderCount: newTrader });
 });
 
 indexer.onEvent({ contract: "HedgeRouter", event: "LongBought", fields }, async ({ event, context }) => {
@@ -148,6 +185,8 @@ indexer.onEvent({ contract: "HedgeRouter", event: "LongBought", fields }, async 
     timestamp: event.block.timestamp,
     txHash: event.transaction.hash,
   });
+  const newTrader = await seeTrader(context, event.params.account, event.block.timestamp);
+  await bumpProtocol(context, { buyCount: 1, traderCount: newTrader });
 });
 
 /** Kuru prices are rrUSD per LONG with 18 decimals; sizes are LONG units with 6 decimals. */
@@ -175,6 +214,12 @@ indexer.onEvent({ contract: "KuruBook", event: "Trade", fields }, async ({ event
     timestamp: event.block.timestamp,
     blockNumber: event.block.number,
     txHash: event.transaction.hash,
+  });
+
+  await bumpProtocol(context, {
+    tradeCount: 1,
+    volumeQuote: quote,
+    traderCount: p.takerAddress !== HEDGE_ROUTER ? await seeTrader(context, p.txOrigin, event.block.timestamp) : 0,
   });
 
   const market = await context.Market.get(marketId);

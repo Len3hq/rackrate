@@ -6,7 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { PUBLISHERS, liveWeekly, useMarkets, useOracle } from "@/lib/data";
-import { usd } from "@/lib/format";
+import { toNum, usd } from "@/lib/format";
+import { INDEXER_URL, useProtocolStats } from "@/lib/indexer";
 import CountUp from "../reactbits/CountUp";
 import SpotlightCard from "../reactbits/SpotlightCard";
 import { PriceChart } from "../price-chart";
@@ -24,26 +25,37 @@ const Section = ({ id, className = "", children }: { id?: string; className?: st
 export function StatsBand() {
   const oracle = useOracle(48); // same query as the hero and oracle section; the 7-day average comes from windowStats
   const markets = useMarkets();
+  const stats = useProtocolStats();
   const now = Math.floor(Date.now() / 1000);
   const weeks = liveWeekly(markets.data, now).length;
-  const items = [
+  // Trading totals come from the indexer; without one (or while it is unreachable) the band shows chain stats only.
+  const indexed = !!INDEXER_URL && !stats.isError;
+  const items: { label: string; value: number | undefined; prefix?: string; suffix?: string; digits: number }[] = [
     { label: "H100 index now", value: oracle.data?.lastPrice, prefix: "$", suffix: "/hr", digits: 4 },
     { label: "7-day average", value: oracle.data?.avg7d ?? undefined, prefix: "$", suffix: "/hr", digits: 4 },
+    ...(indexed
+      ? [
+          { label: "Volume traded on Kuru", value: stats.data === undefined ? undefined : toNum(BigInt(stats.data?.volumeQuote ?? "0")), prefix: "$", digits: 0 },
+          { label: "GPU-weeks hedged", value: stats.data === undefined ? undefined : toNum(BigInt(stats.data?.hedgedUnits ?? "0")), digits: 2 },
+        ]
+      : []),
     { label: "Weeks open for trading", value: markets.data ? weeks : undefined, digits: 0 },
     { label: "Independent publishers", value: PUBLISHERS.length, digits: 0 },
   ];
   return (
     <Section className="mt-6">
-      <div className="grid grid-cols-2 gap-y-8 border-y border-line py-8 md:grid-cols-4 md:divide-x md:divide-line">
+      <div
+        className={`grid grid-cols-2 gap-y-8 border-y border-line py-8 ${indexed ? "md:grid-cols-3 lg:grid-cols-6 lg:divide-x lg:divide-line" : "md:grid-cols-4 md:divide-x md:divide-line"}`}
+      >
         {items.map((it) => (
-          <div key={it.label} className="px-1 md:px-6">
+          <div key={it.label} className={`px-1 ${indexed ? "lg:px-5" : "md:px-6"}`}>
             <p className="font-mono text-2xl font-medium tracking-tight tnum md:text-[28px]">
               {it.value === undefined ? (
                 <Skeleton className="h-8 w-28" />
               ) : (
                 <>
                   {it.prefix}
-                  <CountUp to={Number(it.value.toFixed(it.digits))} from={0} duration={1.4} />
+                  <CountUp to={Number(it.value.toFixed(it.digits))} from={0} duration={1.4} separator="," />
                   {it.suffix && <span className="text-base text-muted">{it.suffix}</span>}
                 </>
               )}

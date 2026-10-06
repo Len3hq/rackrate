@@ -69,3 +69,20 @@ type OraclePrint {
   submissions: Int!
   timestamp: Int!
 }
+
+# Running protocol totals (single row, id "rackrate"), for the landing page.
+type Protocol {
+  id: ID!
+  tradeCount: Int! # fills on the weekly Kuru books
+  volumeQuote: BigInt! # rrUSD traded on the books (6 decimals)
+  hedgeCount: Int! # hedges placed through the HedgeRouter (one per week hedged)
+  hedgedUnits: BigInt! # GPU-weeks hedged (6 decimals)
+  buyCount: Int! # LONG purchases
+  traderCount: Int! # distinct wallets that hedged, bought or sold
+}
+
+# A wallet that has hedged, bought or sold (for the distinct-trader count).
+type Trader {
+  id: ID!
+  firstSeen: Int!
+}

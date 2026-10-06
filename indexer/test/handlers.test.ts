@@ -91,6 +91,8 @@ describe("Rackrate indexer", () => {
     t.expect(activity[0]).toMatchObject({ account: ALICE, market: SERIES, units: 1_000_000n, amountIn: 672_000_000n, amountOut: 466_260_000n });
     t.expect(activity[1]).toMatchObject({ account: ALICE, market: SERIES, amountIn: 100_000_000n, amountOut: 208_129n });
     t.expect((await indexer.Market.getOrThrow(SERIES)).pairsMinted).toBe(1_000_000n);
+    // Totals: two fills, one hedge, one buy, one distinct trader (the router itself is never counted).
+    t.expect(await indexer.Protocol.getOrThrow("rackrate")).toMatchObject({ tradeCount: 2, hedgeCount: 1, hedgedUnits: 1_000_000n, buyCount: 1, traderCount: 1, volumeQuote: 466_260_000n + 99_999_740n });
   });
 
   it("merges a direct wallet sell that fills against several orders into one SELL", async (t) => {
@@ -106,6 +108,7 @@ describe("Rackrate indexer", () => {
     t.expect(activity).toHaveLength(1);
     t.expect(activity[0]).toMatchObject({ kind: "SELL", account: ALICE, units: 40_600n, amountOut: 13_901_400n + 4_787_172n });
     t.expect((await indexer.Market.getOrThrow(SERIES)).tradeCount).toBe(2);
+    t.expect(await indexer.Protocol.getOrThrow("rackrate")).toMatchObject({ tradeCount: 2, traderCount: 1, hedgeCount: 0, buyCount: 0 });
   });
 
   it("tracks redemptions, settlement, claims and oracle prints", async (t) => {

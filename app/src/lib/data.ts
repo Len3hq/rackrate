@@ -261,12 +261,12 @@ async function loadOracle(client: PublicClient, hours: number): Promise<OracleSt
   };
 }
 
-export function useOracle(hours = 72) {
+export function useOracle(hours = 72, enabled = true) {
   const client = usePublicClient();
   return useQuery({
     queryKey: ["oracle", hours],
     queryFn: () => loadOracle(client as PublicClient, hours),
-    enabled: !!client,
+    enabled: !!client && enabled,
     refetchInterval: 60_000,
   });
 }

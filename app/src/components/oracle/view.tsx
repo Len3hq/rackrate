@@ -2,8 +2,9 @@
 
 import { CheckCircle, Circle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import { useState } from "react";
-import { EPOCH_STATUS, PUBLISHERS, useOracle } from "@/lib/data";
+import { useMemo, useState } from "react";
+import { EPOCH_STATUS, FEEDS, PUBLISHERS, useOracle } from "@/lib/data";
+import { INDEXER_URL, useOraclePrints } from "@/lib/indexer";
 import { deployment } from "@/lib/generated";
 import { shortAddr, usd, utcHour } from "@/lib/format";
 import { explorer } from "@/lib/wagmi";
@@ -18,10 +19,32 @@ const RANGES = [
 
 export function OracleView() {
   const [hours, setHours] = useState(72);
-  const oracle = useOracle(hours);
+  // Stats, feed rules and the last 24 hours with per-publisher ticks always come from the chain.
+  const oracle = useOracle(24);
   const d = oracle.data;
+  // The chart's longer history comes from the indexer in one query; without it (or if it fails), from the chain.
+  const firstEpoch = d ? Math.max(0, d.nextEpoch - hours) : undefined;
+  const prints = useOraclePrints(FEEDS.H100, firstEpoch);
+  const useChain = !INDEXER_URL || prints.isError;
+  const chainHistory = useOracle(hours, useChain && hours !== 24);
+
+  const points = useMemo(() => {
+    if (!d) return undefined;
+    if (useChain) return hours === 24 ? d.points : chainHistory.data?.points;
+    if (!prints.data) return undefined;
+    const byEpoch = new Map(prints.data.map((p) => [Number(p.epoch), p]));
+    const out = [];
+    for (let e = d.nextEpoch - hours; e < d.nextEpoch; e++) {
+      if (e < 0) continue;
+      const p = byEpoch.get(e);
+      // An hour finalized onchain but not yet indexed shows as a gap until the indexer catches up.
+      out.push({ time: d.genesis + e * d.epochLength, status: p?.status ?? 0, price: p && p.status === 1 ? Number(p.price) / 1e6 : null });
+    }
+    return out;
+  }, [d, useChain, hours, chainHistory.data, prints.data]);
+
   const recent = d ? [...d.points].reverse().slice(0, 24) : [];
-  const printed = d ? d.points.filter((p) => p.status === 1).length : 0;
+  const printed = points ? points.filter((p) => p.status === 1).length : 0;
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-6 md:py-14">
@@ -34,7 +57,7 @@ export function OracleView() {
         <Stat label="Last print" value={d ? `${usd(d.lastPrice, 4)}/hr` : null} />
         <Stat label="24h average" value={d ? (d.avg24h ? `${usd(d.avg24h, 4)}/hr` : "-") : null} />
         <Stat label="7d average" value={d ? (d.avg7d ? `${usd(d.avg7d, 4)}/hr` : "-") : null} />
-        <Stat label={`Printed, last ${hours}h`} value={d ? `${printed} of ${d.points.length}` : null} />
+        <Stat label={`Printed, last ${hours}h`} value={points ? `${printed} of ${points.length}` : null} />
       </div>
 
       <section className="mt-6 rounded-2xl border border-line bg-surface p-5 shadow-card md:p-6">
@@ -49,7 +72,7 @@ export function OracleView() {
             ))}
           </div>
         </div>
-        <div className="mt-4">{d ? <PriceChart key={hours} points={d.points} height={300} /> : <Skeleton className="h-[300px] w-full" />}</div>
+        <div className="mt-4">{points ? <PriceChart key={hours} points={points} height={300} /> : <Skeleton className="h-[300px] w-full" />}</div>
         {oracle.isError && <p className="text-sm text-muted">Could not reach Monad testnet. Retrying automatically.</p>}
       </section>
 
