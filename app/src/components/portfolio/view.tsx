@@ -70,6 +70,11 @@ export function PortfolioView() {
 
   return (
     <Shell>
+      {holdings.isError && !h && (
+        <p className="mb-4 rounded-xl bg-rose-soft px-4 py-3 text-sm text-rose" role="status">
+          Could not load your balances from Monad testnet. Retrying automatically.
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-3">
         <Tile label="rrUSD balance" value={h ? usd(toNum(h.usd)) : null}>
           <div className="mt-1 -ml-1.5"><AddToken address={deployment.rrUSD} symbol="rrUSD" /></div>

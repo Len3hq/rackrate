@@ -40,13 +40,19 @@ export const DOCS: DocPage[] = [
         </ul>
         <h2>Try it in three minutes</h2>
         <ol>
-          <li>Add Monad testnet to a browser wallet (Rabby, MetaMask, Phantom) and get a little testnet MON for gas from the Monad faucet.</li>
+          <li>
+            Add Monad testnet to a browser wallet (Rabby, MetaMask, Phantom) and get a little testnet MON for gas from the{" "}
+            <a href="https://faucet.monad.xyz" target="_blank" rel="noreferrer">
+              Monad faucet
+            </a>
+            .
+          </li>
           <li>
             Open <Link href="/trade">Trade</Link>, connect, and press <strong>Get 10,000 test rrUSD</strong>. rrUSD is a free test dollar.
           </li>
           <li>Pick one or more weeks, enter how many GPUs, approve rrUSD once, and confirm the hedge or purchase.</li>
           <li>
-            Watch the position in <Link href="/portfolio">Portfolio</Link>. After the week ends and settles, claim the payout there.
+            Watch the position in <Link href="/portfolio">Portfolio</Link>, where you can also close it early and see your history. After the week ends and settles, claim the payout there.
           </li>
         </ol>
         <h2>Demo weeks</h2>
@@ -86,7 +92,7 @@ SHORT pays (cap − A)   × 168`}</code>
         </p>
         <h2>Prices and implied rates</h2>
         <p>
-          LONG trades on Kuru against rrUSD. A LONG price converts to an implied rental rate as <code>floor + price ÷ 168</code>. A LONG at $466 implies $3.77 per GPU-hour. The trade screen shows both numbers.
+          LONG trades on Kuru against rrUSD. A LONG price converts to an implied rental rate as <code>floor + price ÷ 168</code>. A LONG at $466 implies $3.77 per GPU-hour. The trade screen shows both numbers, every price level on each week&apos;s book, and its recent fills.
         </p>
         <h2>Closing early</h2>
         <p>
@@ -178,7 +184,7 @@ SHORT pays (cap − A)   × 168`}</code>
         <p>Three allowlisted publishers submit a price every hour:</p>
         <ul>
           <li>
-            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow computes the price and delivers a report to the <code>CreReceiver</code> contract. Until Chainlink grants deploy access, it runs in CRE simulation mode with on-chain delivery through Chainlink&apos;s test forwarder.
+            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow computes the price and delivers a report to the <code>CreReceiver</code> contract. Until Chainlink grants deploy access, it runs in CRE simulation mode, with each report delivered onchain through Chainlink&apos;s test forwarder.
           </li>
           <li>
             <strong>B and C, bots.</strong> Two independent processes with separate keys.
@@ -284,6 +290,10 @@ SHORT pays (cap − A)   × 168`}</code>
         <h2>Kuru</h2>
         <p>
           Books are created through Kuru&apos;s router <A addr={deployment.KuruRouter} /> with fixed parameters: price precision 1e4 ($0.01 tick), size precision 1e6 (one unit per token unit), minimum size 0.01 GPU-week and zero fees on testnet.
+        </p>
+        <h2>History and fills</h2>
+        <p>
+          Portfolio history and recent trades come from an <a href="https://envio.dev" target="_blank" rel="noreferrer">Envio HyperIndex</a> indexer of these contracts and the Kuru books. Balances, positions and quotes are always read from the chain itself, so the app keeps working if the indexer is unavailable.
         </p>
       </>
     ),

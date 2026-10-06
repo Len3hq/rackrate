@@ -22,7 +22,7 @@ const Section = ({ id, className = "", children }: { id?: string; className?: st
 // ---------------------------------------------------------------------------------------------------------------
 
 export function StatsBand() {
-  const oracle = useOracle(168);
+  const oracle = useOracle(48); // same query as the hero and oracle section; the 7-day average comes from windowStats
   const markets = useMarkets();
   const now = Math.floor(Date.now() / 1000);
   const weeks = liveWeekly(markets.data, now).length;
@@ -90,7 +90,7 @@ export function Audiences() {
           <Reveal key={c.who} delay={i * 0.08} className="h-full">
             <Link href="/trade" className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface">
               <div className="relative aspect-[16/10] overflow-hidden">
-                <Image src={c.img} alt={c.alt} fill sizes="(min-width: 768px) 50vw, 100vw" className="photo-tone object-cover transition duration-700 ease-out-expo group-hover:scale-[1.03]" />
+                <Image src={c.img} alt={c.alt} fill sizes="(min-width: 1280px) 620px, (min-width: 768px) 50vw, 100vw" className="photo-tone object-cover transition duration-700 ease-out-expo group-hover:scale-[1.03]" />
                 <div className="photo-tint absolute inset-0" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12]/85 via-[#0d0b12]/25 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-6 text-[#f3f1f9] md:p-8">
@@ -242,11 +242,9 @@ export function Lifecycle() {
         </svg>
         <ol className="grid gap-10 md:grid-cols-4 md:gap-8 md:pt-24">
           {STEPS.map((s, i) => (
-            <Reveal key={s.name} delay={0.15 + i * 0.12}>
-              <li className="border-l border-line pl-5 md:border-l-0 md:pl-0">
-                <p className="font-mono text-sm text-accent">{s.name}</p>
-                <p className="mt-3 max-w-[34ch] leading-relaxed text-ink-2">{s.body}</p>
-              </li>
+            <Reveal key={s.name} as="li" delay={0.15 + i * 0.12} className="border-l border-line pl-5 md:border-l-0 md:pl-0">
+              <p className="font-mono text-sm text-accent">{s.name}</p>
+              <p className="mt-3 max-w-[34ch] leading-relaxed text-ink-2">{s.body}</p>
             </Reveal>
           ))}
         </ol>
@@ -264,7 +262,7 @@ export function OracleSection() {
     <Section className="mt-28">
       <div className="grid items-stretch gap-6 md:grid-cols-[0.9fr_1.1fr]">
         <Reveal className="relative min-h-[320px] overflow-hidden rounded-2xl border border-line">
-          <Image src="/images/rack-closeup.jpg" alt="Cabled servers in a data centre rack" fill sizes="(min-width: 768px) 45vw, 100vw" className="photo-tone object-cover" />
+          <Image src="/images/rack-closeup.jpg" alt="Cabled servers in a data centre rack" fill sizes="(min-width: 1280px) 560px, (min-width: 768px) 45vw, 100vw" className="photo-tone object-cover" />
           <div className="photo-tint absolute inset-0" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12]/80 to-transparent" />
           <p className="absolute bottom-0 p-6 text-2xl font-semibold leading-tight tracking-tight text-[#f3f1f9] md:p-8 md:text-3xl">

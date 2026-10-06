@@ -8,6 +8,12 @@ import { bookPrice, kuruBookAbi } from "./kuru";
 
 export const FEEDS = { H100: keccak256(toBytes("H100")) } as const;
 
+/**
+ * Calldata per Multicall3 request. viem's default (1 KB) splits a week of oracle reads into dozens of RPC calls,
+ * which trips the public RPC's rate limit; 64 KB keeps every page load to a handful of requests.
+ */
+const MULTICALL_BYTES = 65_536;
+
 /** The publishers on the hourly H100 feed (all team-operated on testnet). */
 export const PUBLISHERS: { name: string; kind: string; address: Address }[] = [
   { name: "Chainlink CRE", kind: "CRE workflow", address: deployment.CreReceiver as Address },
@@ -63,6 +69,7 @@ async function loadMarkets(client: PublicClient): Promise<Market[]> {
   const count = await client.readContract({ address: factory, abi: seriesFactoryAbi, functionName: "seriesCount" });
   if (count === 0n) return [];
   const addrs = (await client.multicall({
+    batchSize: MULTICALL_BYTES,
     allowFailure: false,
     contracts: Array.from({ length: Number(count) }, (_, i) => ({
       address: factory,
@@ -75,6 +82,7 @@ async function loadMarkets(client: PublicClient): Promise<Market[]> {
   const fields = ["long", "short", "isDemo", "feedId", "startEpoch", "endEpoch", "floor", "cap", "settled", "settlementPrice", "longPayoutPerUnit", "shortPayoutPerUnit", "collateralPerUnit"] as const;
   const perSeries = fields.length + 1;
   const raw = await client.multicall({
+    batchSize: MULTICALL_BYTES,
     allowFailure: false,
     contracts: addrs.flatMap((s) => [
       ...fields.map((f) => ({ address: s, abi: seriesAbi, functionName: f })),
@@ -106,6 +114,7 @@ async function loadMarkets(client: PublicClient): Promise<Market[]> {
   const feedIds = [...new Set(rows.map((r) => r.feedId))];
   const books = rows.filter((r) => r.book) as (typeof rows[number] & { book: Address })[];
   const extra = await client.multicall({
+    batchSize: MULTICALL_BYTES,
     allowFailure: true,
     contracts: [
       ...feedIds.map((f) => ({ address: deployment.RackOracle as Address, abi: rackOracleAbi, functionName: "getFeed", args: [f] })),
@@ -203,6 +212,7 @@ async function loadOracle(client: PublicClient, hours: number): Promise<OracleSt
   for (let e = from; e <= last; e++) epochs.push(e);
 
   const res = await client.multicall({
+    batchSize: MULTICALL_BYTES,
     allowFailure: true,
     contracts: [
       ...epochs.map((e) => ({ address: oracle, abi: rackOracleAbi, functionName: "getEpoch", args: [feedId, e] })),
@@ -276,6 +286,7 @@ export interface Holdings {
 async function loadHoldings(client: PublicClient, account: Address, markets: Market[]): Promise<Holdings> {
   const usdAddr = deployment.rrUSD as Address;
   const res = await client.multicall({
+    batchSize: MULTICALL_BYTES,
     allowFailure: false,
     contracts: [
       { address: usdAddr, abi: erc20Abi, functionName: "balanceOf", args: [account] },

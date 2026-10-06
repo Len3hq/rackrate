@@ -116,7 +116,7 @@ try {
   if (phase === "weekly") {
     await step("hedge 1 GPU for W41 and W42", async () => {
       await page.locator("fieldset").getByRole("button", { name: "W42", exact: true }).click();
-      await button(/^Hedge 2 weeks$/).waitFor({ timeout: 30_000 });
+      await button(/^Hedge 2 weeks$/).waitFor({ timeout: 120_000 }); // fork quotes load state lazily
       await page.waitForTimeout(800);
       await button(/^Hedge 2 weeks$/).click();
       await page.getByText(/You hold 2\.00 SHORT/).waitFor({ timeout: 90_000 });
@@ -124,7 +124,7 @@ try {
     await step("buy LONG with $500 in W42 only", async () => {
       await page.getByRole("tab", { name: "Lock compute cost" }).click();
       await page.locator("fieldset").getByRole("button", { name: "W41", exact: true }).click(); // deselect W41
-      await button(/^Buy 1 week$/).waitFor({ timeout: 30_000 });
+      await button(/^Buy 1 week$/).waitFor({ timeout: 120_000 });
       await page.waitForTimeout(800);
       await button(/^Buy 1 week$/).click();
       await page.getByText(/You hold .* LONG across 1 week/).waitFor({ timeout: 90_000 });

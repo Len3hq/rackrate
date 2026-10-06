@@ -3,7 +3,7 @@
 #
 #   weekly: faucet, approve, a two-week hedge, a purchase, then closing both positions from Portfolio
 #           (one by buying LONG back and redeeming, one by redeeming and selling the extra LONG).
-#   demo:   a 6-epoch demo session with publishers and the market maker (no keeper, so the app settles it);
+#   demo:   a 10-epoch demo session with publishers and the market maker (no keeper, so the app settles it);
 #           hedge it in the app, wait for the window to end, then settle and claim from Portfolio.
 #
 #   app/scripts/e2e-fork.sh            # both phases (~8 minutes)
@@ -65,12 +65,14 @@ for phase in "${PHASES[@]}"; do
     cast send "$USD" "transfer(address,uint256)" 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 200000000000 --private-key "$DEPLOYER_PRIVATE_KEY" "${RPC[@]}" >/dev/null
     # The weekly phase covers the faucet; here the trader is funded directly.
     cast send "$USD" "transfer(address,uint256)" 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 5000000000 --private-key "$DEPLOYER_PRIVATE_KEY" "${RPC[@]}" >/dev/null
-    (cd "$ROOT/bots" && node src/demo.ts start --epochs 6)
+    # Start the maker first: with a fresh key its first pass funds every weekly book (a few minutes), which then
+    # overlaps the demo setup instead of eating into the demo window.
+    (cd "$ROOT/bots" && node src/mm.ts --interval 15 >"$LOGS/mm.log" 2>&1) &
+    (cd "$ROOT/bots" && node src/demo.ts start --epochs 10)
     FEED=$(node -e "console.log(require('$DEMO_SESSION_FILE').feedName)")
     for p in B C; do
       (cd "$ROOT/bots" && node src/publisher.ts --key "PUBLISHER_${p}_PRIVATE_KEY" --feeds "$FEED" --interval 3 >"$LOGS/pub$p.log" 2>&1) &
     done
-    (cd "$ROOT/bots" && node src/mm.ts --interval 15 >"$LOGS/mm.log" 2>&1) &
     TEST_ACCOUNT=0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 node "$APP_DIR/scripts/e2e-ui.mjs" demo "$LOGS"
   else
     node "$APP_DIR/scripts/e2e-ui.mjs" weekly "$LOGS"

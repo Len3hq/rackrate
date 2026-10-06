@@ -62,7 +62,11 @@ export function TradeView() {
               </span>
             </div>
             <div className="mt-4">
-              {markets.data ? <div className="-mx-2 overflow-x-auto px-2"><div className="min-w-[520px]"><ForwardCurve markets={weekly} index={oracle.data?.lastPrice ?? null} /></div></div> : <Skeleton className="h-[200px] w-full" />}
+              <div className="-mx-2 overflow-x-auto px-2">
+                <div className="min-w-[520px]">
+                  {markets.data ? <ForwardCurve markets={weekly} index={oracle.data?.lastPrice ?? null} /> : <Skeleton className="aspect-[640/200] w-full" />}
+                </div>
+              </div>
             </div>
           </section>
 
@@ -76,8 +80,13 @@ export function TradeView() {
             </div>
             {markets.isError && <p className="p-6 text-sm text-muted">Could not reach Monad testnet. Retrying automatically.</p>}
             {!markets.data && !markets.isError && (
-              <div className="space-y-3 p-5">
-                {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              // Same height as the week rows, so nothing below moves when they load.
+              <div>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div key={i} className="border-b border-line px-5 py-4 last:border-b-0">
+                    <Skeleton className="h-[41px] w-full" />
+                  </div>
+                ))}
               </div>
             )}
             {markets.data && weeks.length === 0 && <p className="p-6 text-sm text-muted">No weeks are open for trading right now. New weeks are listed every Monday.</p>}

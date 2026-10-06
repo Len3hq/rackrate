@@ -6,6 +6,18 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 import { THEME_SCRIPT } from "@/lib/theme-script";
 
+// The app talks to the RPC (and the indexer, when configured) on first load, so open those connections early.
+const origin = (url: string) => {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+};
+const PRECONNECT = [origin(process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"), origin(process.env.NEXT_PUBLIC_INDEXER_URL || "")].filter(
+  (o): o is string => !!o,
+);
+
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
@@ -33,6 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        {PRECONNECT.map((o) => (
+          <link key={o} rel="preconnect" href={o} crossOrigin="anonymous" />
+        ))}
       </head>
       <body className="grain flex min-h-[100dvh] flex-col">
         <Providers>
