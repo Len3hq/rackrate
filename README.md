@@ -202,7 +202,7 @@ cre/scripts/run.sh start     # hourly, in the background (also: status, logs, st
 Notes:
 - The bots image ships the ABIs from `app/src/lib/generated.ts`, so it needs no Solidity toolchain.
 - **Secrets** are service variables, never in the repo: `BOT_RPC_URL`, `PRICE_MASTER_SECRET` and each service's key (`PUBLISHER_B_PRIVATE_KEY`, `PUBLISHER_C_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY` for the keeper, `MM_PRIVATE_KEY`). The market maker also gets `MM_STATE_FILE=/data/mm-state.json`.
-- The **CRE publisher** takes `CRE_API_KEY` (a Chainlink API key, so the CLI needs no browser login), `CRE_MONAD_RPC_URL`, `CRE_PRICE_MASTER_SECRET` (the same value as `PRICE_MASTER_SECRET`) and `CRE_ETH_PRIVATE_KEY` (the simulator key that pays for the forwarder transaction).
+- The **CRE publisher** takes `CRE_MONAD_RPC_URL`, `CRE_PRICE_MASTER_SECRET` (the same value as `PRICE_MASTER_SECRET`) and `CRE_ETH_PRIVATE_KEY` (the simulator key that pays for the forwarder transaction). It signs in with `CRE_API_KEY` once CRE deploy access is granted; until then with `CRE_CREDENTIALS` (`base64 -i ~/.cre/cre.yaml` after `cre login`) and a volume at `/root/.cre`, where the CLI keeps the login it renews.
 - **One process per key.** Stop a bot on any other host before starting it on Railway, or the two will collide on nonces. A market maker that starts without a state file adopts its resting orders from the chain first.
 
 ## Network

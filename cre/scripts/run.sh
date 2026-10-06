@@ -29,6 +29,14 @@ load_env() {
   fi
   export CRE_ETH_PRIVATE_KEY="${CRE_ETH_PRIVATE_KEY#0x}"
   : "${CRE_MONAD_RPC_URL:?missing}" "${CRE_PRICE_MASTER_SECRET:?missing}" "${CRE_ETH_PRIVATE_KEY:?missing}"
+  # Without an API key, a hosted runner is seeded once with a CLI login (base64 of ~/.cre/cre.yaml). The CLI
+  # renews it in place, so ~/.cre must be a volume and the seed is never written over a newer copy.
+  if [ -z "${CRE_API_KEY:-}" ] && [ -n "${CRE_CREDENTIALS:-}" ] && [ ! -s "$HOME/.cre/cre.yaml" ]; then
+    mkdir -p "$HOME/.cre"
+    printf '%s' "$CRE_CREDENTIALS" | base64 -d >"$HOME/.cre/cre.yaml"
+    chmod 600 "$HOME/.cre/cre.yaml"
+    echo "$(date -u +%FT%TZ) [cre-runner] login seeded from CRE_CREDENTIALS"
+  fi
 }
 
 once() {
@@ -40,6 +48,7 @@ once() {
 
 loop() {
   echo "$(date -u +%FT%TZ) [cre-runner] started, one run every hour at HH:01:30 UTC"
+  (load_env && "$CRE_BIN" whoami 2>&1 | grep -E "Email|Deploy Access|rror" || true)
   while true; do
     now=$(date -u +%s)
     next=$(((now / 3600 + 1) * 3600 + OFFSET))
