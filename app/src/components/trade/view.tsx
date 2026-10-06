@@ -124,7 +124,7 @@ export function TradeView() {
             })}
           </section>
           {markets.data && weeks.length > 0 && <Depth markets={weeks} focus={focus ?? selected[0] ?? null} setFocus={setFocus} />}
-          {markets.data && <SettledWeeks markets={markets.data} />}
+          <SettledWeeks markets={markets.data} />
           <p className="text-xs leading-relaxed text-muted">
             Prices are per LONG token, which covers one H100 for the whole week. The $/hr figure is the implied rental rate: floor ($1) plus price divided by 168 hours. Range $1 to $5.
           </p>

@@ -6,7 +6,7 @@
 #   demo:   a 10-epoch demo session with publishers and the market maker (no keeper, so the app settles it);
 #           hedge it in the app, wait for the window to end, then settle and claim from Portfolio.
 #
-#   app/scripts/e2e-fork.sh            # both phases (~8 minutes)
+#   app/scripts/e2e-fork.sh            # all three phases (~15 minutes)
 #   app/scripts/e2e-fork.sh weekly     # or: demo, settle
 #
 #   settle: positions in the real W41 series, then the fork's clock moves past the window end and the grace
@@ -21,7 +21,7 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="$(dirname "$APP_DIR")"
 set -a; . "$ROOT/contracts/.env"; set +a
 
-PHASES=("${@:-weekly demo}")
+PHASES=("${@:-weekly demo settle}")
 PHASES=(${PHASES[@]})
 PORT=8549
 APP_PORT=3102

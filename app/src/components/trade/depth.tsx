@@ -104,12 +104,14 @@ export function Depth({ markets, focus, setFocus }: { markets: Market[]; focus: 
 }
 
 /** Weeks that have settled, newest first: final average and what each token paid. */
-export function SettledWeeks({ markets }: { markets: Market[] }) {
-  const settled = markets.filter((m) => m.settled && !m.isDemo).sort((a, b) => b.start - a.start);
+export function SettledWeeks({ markets }: { markets: Market[] | undefined }) {
+  const settled = (markets ?? []).filter((m) => m.settled && !m.isDemo).sort((a, b) => b.start - a.start);
   return (
     <section className="rounded-2xl border border-line bg-surface p-5 shadow-card md:p-6">
       <h2 className="font-medium">Settled weeks</h2>
-      {settled.length === 0 ? (
+      {!markets ? (
+        <Skeleton className="mt-3 h-12 w-full" />
+      ) : settled.length === 0 ? (
         <p className="mt-3 text-sm text-muted">No week has settled yet. The first, 2026-W41, settles once its last hour prints after Monday, Oct 12, 00:00 UTC.</p>
       ) : (
         <div className="mt-3 overflow-x-auto">
