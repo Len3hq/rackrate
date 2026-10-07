@@ -1,6 +1,7 @@
 // Unit tests for the CRE real-price reference, with the SDK's test runtime and HTTP mock. Run: bun test
 import { expect } from "bun:test";
 import { HttpActionsMock, newTestRuntime, test } from "@chainlink/cre-sdk/test";
+import { gzipSync } from "fflate";
 import { anchorLevel, referenceIndex, snapshotUrl } from "../../bots/src/lib/reference.ts";
 import { dayIndex, referenceLevel } from "./reference-http.ts";
 
@@ -18,7 +19,10 @@ const snapshot = (scale: number) => ({
     { provider: "b", gpu: "a100-80gb", kind: "on-demand", usd_hr: 1.2 },
   ],
 });
+
 const body = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64");
+/** The same body gzip-compressed, as GitHub serves it when asked for gzip. */
+const gzBody = (o: unknown) => Buffer.from(gzipSync(Buffer.from(JSON.stringify(o)))).toString("base64");
 
 test("a day's index is the provider median, agreed over the HTTP capability", () => {
   const http = HttpActionsMock.testInstance();
@@ -55,4 +59,15 @@ test("no snapshot at all returns null", () => {
   const http = HttpActionsMock.testInstance();
   http.sendRequest = () => ({ statusCode: 404, body: body({}) });
   expect(referenceLevel(newTestRuntime(), Date.UTC(2026, 9, 12) / 1000, new Map())).toBeNull();
+});
+
+test("snapshots are requested gzip-compressed and decompressed in the workflow", () => {
+  const http = HttpActionsMock.testInstance();
+  let asked: string[] = [];
+  http.sendRequest = (req) => {
+    asked = req.multiHeaders["Accept-Encoding"]?.values ?? [];
+    return { statusCode: 200, body: gzBody(snapshot(1)) };
+  };
+  expect(dayIndex(newTestRuntime(), "2026-10-10", new Map())).toBeCloseTo(3.49, 9);
+  expect(asked).toEqual(["gzip"]);
 });
