@@ -86,31 +86,6 @@ export function useMarketTrades(series: Address | undefined) {
   });
 }
 
-export interface ProtocolStats {
-  tradeCount: number;
-  volumeQuote: string; // rrUSD, 6 decimals
-  hedgeCount: number;
-  hedgedUnits: string; // GPU-weeks, 6 decimals
-  buyCount: number;
-  traderCount: number;
-}
-
-/** Running protocol totals kept by the indexer (one row). */
-export function useProtocolStats() {
-  return useQuery({
-    queryKey: ["indexer", "protocol"],
-    enabled: !!INDEXER_URL,
-    refetchInterval: 30_000,
-    queryFn: async () =>
-      (
-        await gql<{ Protocol_by_pk: ProtocolStats | null }>(
-          `query Protocol { Protocol_by_pk(id: "rackrate") { tradeCount volumeQuote hedgeCount hedgedUnits buyCount traderCount } }`,
-          {},
-        )
-      ).Protocol_by_pk,
-  });
-}
-
 export interface OraclePrintRow {
   epoch: string;
   status: number;

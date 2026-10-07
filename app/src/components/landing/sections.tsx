@@ -1,72 +1,16 @@
 "use client";
 
-import { ArrowsLeftRight, Broadcast, CheckCircle, Circle, Lightning, ShieldCheck, Stack } from "@phosphor-icons/react";
 import { motion } from "motion/react";
-import Image from "next/image";
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PUBLISHERS, liveWeekly, useMarkets, useOracle } from "@/lib/data";
-import { toNum, usd } from "@/lib/format";
-import { INDEXER_URL, useProtocolStats } from "@/lib/indexer";
-import CountUp from "../reactbits/CountUp";
-import SpotlightCard from "../reactbits/SpotlightCard";
-import { PriceChart } from "../price-chart";
+import { liveWeekly, useMarkets } from "@/lib/data";
+import { usd } from "@/lib/format";
 import { Reveal } from "../reveal";
-import { Skeleton } from "../ui";
 
-const Section = ({ id, className = "", children }: { id?: string; className?: string; children: React.ReactNode }) => (
+export const Section = ({ id, className = "", children }: { id?: string; className?: string; children: React.ReactNode }) => (
   <section id={id} className={`mx-auto max-w-[1280px] px-4 md:px-6 ${className}`}>
     {children}
   </section>
 );
-
-// ---------------------------------------------------------------------------------------------------------------
-
-export function StatsBand() {
-  const oracle = useOracle(48); // same query as the hero and oracle section; the 7-day average comes from windowStats
-  const markets = useMarkets();
-  const stats = useProtocolStats();
-  const now = Math.floor(Date.now() / 1000);
-  const weeks = liveWeekly(markets.data, now).length;
-  // Trading totals come from the indexer; without one (or while it is unreachable) the band shows chain stats only.
-  const indexed = !!INDEXER_URL && !stats.isError;
-  const items: { label: string; value: number | undefined; prefix?: string; suffix?: string; digits: number }[] = [
-    { label: "H100 index now", value: oracle.data?.lastPrice, prefix: "$", suffix: "/hr", digits: 4 },
-    { label: "7-day average", value: oracle.data?.avg7d ?? undefined, prefix: "$", suffix: "/hr", digits: 4 },
-    ...(indexed
-      ? [
-          { label: "Volume traded on Kuru", value: stats.data === undefined ? undefined : toNum(BigInt(stats.data?.volumeQuote ?? "0")), prefix: "$", digits: 0 },
-          { label: "GPU-weeks hedged", value: stats.data === undefined ? undefined : toNum(BigInt(stats.data?.hedgedUnits ?? "0")), digits: 2 },
-        ]
-      : []),
-    { label: "Weeks open for trading", value: markets.data ? weeks : undefined, digits: 0 },
-    { label: "Independent publishers", value: PUBLISHERS.length, digits: 0 },
-  ];
-  return (
-    <Section className="mt-6">
-      <div
-        className={`grid grid-cols-2 gap-y-8 border-y border-line py-8 ${indexed ? "md:grid-cols-3 lg:grid-cols-6 lg:divide-x lg:divide-line" : "md:grid-cols-4 md:divide-x md:divide-line"}`}
-      >
-        {items.map((it) => (
-          <div key={it.label} className={`px-1 ${indexed ? "lg:px-5" : "md:px-6"}`}>
-            <p className="font-mono text-2xl font-medium tracking-tight tnum md:text-[28px]">
-              {it.value === undefined ? (
-                <Skeleton className="h-8 w-28" />
-              ) : (
-                <>
-                  {it.prefix}
-                  <CountUp to={Number(it.value.toFixed(it.digits))} from={0} duration={1.4} separator="," />
-                  {it.suffix && <span className="text-base text-muted">{it.suffix}</span>}
-                </>
-              )}
-            </p>
-            <p className="mt-1 text-sm text-muted">{it.label}</p>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
 
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -95,60 +39,6 @@ export function LaunchVideo() {
         </div>
         <p className="mt-3 text-xs text-muted">Music: Ramzuto, &quot;Vida Loca&quot;.</p>
       </Reveal>
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-
-export function Audiences() {
-  const cells = [
-    {
-      img: "/images/gpu-cluster.jpg",
-      alt: "Rows of GPU servers in a data centre",
-      who: "For GPU owners",
-      title: "Sell next week's hours at today's price.",
-      body: "Hedge mints a LONG and SHORT pair, sells the LONG on Kuru and hands you the SHORT. If rental rates fall, the SHORT pays the difference.",
-      cta: "Hedge revenue",
-    },
-    {
-      img: "/images/server-racks.jpg",
-      alt: "Server racks in a cooled machine room",
-      who: "For AI teams",
-      title: "Cap what next week's compute costs.",
-      body: "Buy LONG for the weeks you plan to train. If rental rates rise, LONG pays the difference, so your effective rate stays where you bought it.",
-      cta: "Lock compute cost",
-    },
-  ];
-  return (
-    <Section className="mt-28">
-      <Reveal>
-        <h2 className="max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl md:leading-[1.05]">Two sides of every GPU-hour.</h2>
-        <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-ink-2 md:text-lg">
-          Rental prices for H100s move week to week. Rackrate lets each side fix its rate in advance.
-        </p>
-      </Reveal>
-      <div className="mt-10 grid gap-4 md:grid-cols-2">
-        {cells.map((c, i) => (
-          <Reveal key={c.who} delay={i * 0.08} className="h-full">
-            <Link href="/trade" className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-surface">
-              <div className="relative aspect-[16/10] overflow-hidden">
-                <Image src={c.img} alt={c.alt} fill sizes="(min-width: 1280px) 620px, (min-width: 768px) 50vw, 100vw" className="photo-tone object-cover transition duration-700 ease-out-expo group-hover:scale-[1.03]" />
-                <div className="photo-tint absolute inset-0" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12]/85 via-[#0d0b12]/25 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-6 text-[#f3f1f9] md:p-8">
-                  <p className="text-sm text-[#cfc8f5]">{c.who}</p>
-                  <h3 className="mt-1 max-w-md text-2xl font-semibold tracking-tight md:text-3xl">{c.title}</h3>
-                </div>
-              </div>
-              <div className="flex flex-1 flex-col gap-4 p-6 md:flex-row md:items-end md:justify-between md:p-8">
-                <p className="max-w-[52ch] text-sm leading-relaxed text-ink-2">{c.body}</p>
-                <span className="shrink-0 text-sm font-medium text-accent transition group-hover:translate-x-0.5">{c.cta} →</span>
-              </div>
-            </Link>
-          </Reveal>
-        ))}
-      </div>
     </Section>
   );
 }
@@ -193,7 +83,8 @@ export function PayoffExplorer() {
       <Reveal>
         <div className="grid gap-10 rounded-2xl border border-line bg-surface p-6 shadow-card md:grid-cols-[1fr_1.25fr] md:p-10">
           <div className="flex flex-col">
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">Know the outcome before the week starts.</h2>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">Before and after</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">Know the outcome before the week starts.</h2>
             <p className="mt-4 max-w-[48ch] leading-relaxed text-ink-2">
               Drag the weekly average. A hedged GPU owner earns about {usd(locked)}/hr whatever happens between the {usd(FLOOR, 0)} floor and {usd(CAP, 0)} cap.
             </p>
@@ -249,156 +140,6 @@ export function PayoffExplorer() {
           </div>
         </div>
       </Reveal>
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-
-const STEPS = [
-  { name: "Mint", body: "Deposit the full range in rrUSD to mint one LONG and one SHORT. No leverage and no margin calls." },
-  { name: "Trade", body: "LONG trades on Kuru's onchain order book. The HedgeRouter mints and sells a multi-week ladder in one transaction." },
-  { name: "Print", body: "Three publishers, one on Chainlink CRE, submit the index every hour. The median is finalized onchain." },
-  { name: "Settle", body: "After 168 hourly prints, LONG pays the average above the floor and SHORT pays the rest up to the cap." },
-];
-
-export function Lifecycle() {
-  return (
-    <Section className="mt-28">
-      <Reveal>
-        <h2 className="max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl md:leading-[1.05]">From mint to settlement in one week.</h2>
-      </Reveal>
-      <div className="relative mt-14">
-        {/* The rate line from the logo, drawn as the section scrolls into view. */}
-        <svg viewBox="0 0 1000 60" preserveAspectRatio="none" className="absolute left-0 right-0 top-2 hidden h-14 w-full md:block" aria-hidden="true">
-          <motion.path
-            d="M0 50 H180 V10 H330 V45 H520 V22 H760 V30 H1000"
-            fill="none"
-            stroke="var(--accent)"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-            initial={{ pathLength: 0 }}
-            whileInView={{ pathLength: 1 }}
-            viewport={{ once: true, amount: 0.6 }}
-            transition={{ duration: 1.8, ease: [0.16, 1, 0.3, 1] }}
-          />
-        </svg>
-        <ol className="grid gap-10 md:grid-cols-4 md:gap-8 md:pt-24">
-          {STEPS.map((s, i) => (
-            <Reveal key={s.name} as="li" delay={0.15 + i * 0.12} className="border-l border-line pl-5 md:border-l-0 md:pl-0">
-              <p className="font-mono text-sm text-accent">{s.name}</p>
-              <p className="mt-3 max-w-[34ch] leading-relaxed text-ink-2">{s.body}</p>
-            </Reveal>
-          ))}
-        </ol>
-      </div>
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-
-export function OracleSection() {
-  const oracle = useOracle(48);
-  const latest = oracle.data?.points.at(-1);
-  return (
-    <Section className="mt-28">
-      <div className="grid items-stretch gap-6 md:grid-cols-[0.9fr_1.1fr]">
-        <Reveal className="relative min-h-[320px] overflow-hidden rounded-2xl border border-line">
-          <Image src="/images/rack-closeup.jpg" alt="Cabled servers in a data centre rack" fill sizes="(min-width: 1280px) 560px, (min-width: 768px) 45vw, 100vw" className="photo-tone object-cover" />
-          <div className="photo-tint absolute inset-0" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0d0b12]/80 to-transparent" />
-          <p className="absolute bottom-0 p-6 text-2xl font-semibold leading-tight tracking-tight text-[#f3f1f9] md:p-8 md:text-3xl">
-            Settlement uses the median of independent publishers. Never one feed.
-          </p>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <div className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 shadow-card md:p-8">
-            <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">Oracle</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">An hourly H100 index, checked onchain.</h2>
-            <p className="mt-3 max-w-[56ch] leading-relaxed text-ink-2">
-              Each hour is finalized from at least two submissions, checked against bounds and a jump limit. Hours without enough data are recorded as gaps and never filled in.
-            </p>
-            <div className="mt-6">{oracle.data ? <PriceChart points={oracle.data.points} height={140} compact /> : <Skeleton className="h-[140px] w-full" />}</div>
-            <ul className="mt-6 space-y-2">
-              {PUBLISHERS.map((p, i) => (
-                <li key={p.address} className="flex items-center justify-between rounded-xl bg-surface-2 px-4 py-2.5 text-sm">
-                  <span className="flex items-center gap-3">
-                    <Broadcast size={16} className="text-accent" />
-                    <span className="font-medium">{p.name}</span>
-                    <span className="hidden text-muted sm:inline">{p.kind}</span>
-                  </span>
-                  {latest ? (
-                    latest.submitted[i] ? (
-                      <span className="inline-flex items-center gap-1.5 text-mint"><CheckCircle size={15} weight="fill" /> Printed last hour</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-muted"><Circle size={15} /> No submission</span>
-                    )
-                  ) : (
-                    <Skeleton className="h-4 w-28" />
-                  )}
-                </li>
-              ))}
-            </ul>
-            <Link href="/oracle" className="mt-6 text-sm font-medium text-accent hover:underline">Inspect every hour →</Link>
-          </div>
-        </Reveal>
-      </div>
-    </Section>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------------------
-
-export function Features() {
-  return (
-    <Section className="mt-28">
-      <Reveal>
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">Why Monad</p>
-        <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl md:leading-[1.05]">Every piece runs onchain.</h2>
-      </Reveal>
-      <div className="mt-10 grid gap-4 md:grid-cols-6">
-        <Reveal className="md:col-span-4">
-          <SpotlightCard className="h-full p-7 md:p-9">
-            <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_100%_0%,var(--accent-soft),transparent_60%)]" aria-hidden="true" />
-            <div className="relative">
-              <ArrowsLeftRight size={26} className="text-accent" />
-              <h3 className="mt-5 text-xl font-semibold tracking-tight md:text-2xl">A four-week hedge is one transaction.</h3>
-              <p className="mt-2 max-w-[56ch] leading-relaxed text-ink-2">
-                The HedgeRouter mints each week, sells the LONG side into the book and returns your SHORT positions together. Fill-or-kill: either every week fills at your limit or nothing happens.
-              </p>
-            </div>
-          </SpotlightCard>
-        </Reveal>
-        <Reveal className="md:col-span-2" delay={0.06}>
-          <SpotlightCard className="h-full p-7">
-            <ShieldCheck size={26} className="text-mint" />
-            <h3 className="mt-5 text-lg font-semibold tracking-tight">Fully collateralized</h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">Every pair is backed by the full range in rrUSD. The most you can lose is known before you trade.</p>
-          </SpotlightCard>
-        </Reveal>
-        <Reveal className="md:col-span-2" delay={0.1}>
-          <SpotlightCard className="h-full p-7">
-            <Stack size={26} className="text-accent" />
-            <h3 className="mt-5 text-lg font-semibold tracking-tight">Kuru order book</h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">Each week has its own LONG/rrUSD market on Kuru, a fully onchain central limit order book.</p>
-          </SpotlightCard>
-        </Reveal>
-        <Reveal className="md:col-span-2" delay={0.14}>
-          <SpotlightCard className="h-full bg-[linear-gradient(160deg,var(--accent),#2a1680)] p-7 text-[#f3f1f9]">
-            <Lightning size={26} weight="fill" className="text-[#6cf2be]" />
-            <h3 className="mt-5 text-lg font-semibold tracking-tight">Cheap enough to print hourly</h3>
-            <p className="mt-2 text-sm leading-relaxed text-[#e4defc]">Monad&apos;s fast blocks and low fees let every hour of the index be submitted, checked and finalized onchain.</p>
-          </SpotlightCard>
-        </Reveal>
-        <Reveal className="md:col-span-2" delay={0.18}>
-          <SpotlightCard className="h-full p-7">
-            <Broadcast size={26} className="text-accent" />
-            <h3 className="mt-5 text-lg font-semibold tracking-tight">Chainlink CRE publisher</h3>
-            <p className="mt-2 text-sm leading-relaxed text-ink-2">One of the three publishers is a Chainlink Runtime Environment workflow that computes the price and delivers it onchain as a report.</p>
-          </SpotlightCard>
-        </Reveal>
-      </div>
     </Section>
   );
 }

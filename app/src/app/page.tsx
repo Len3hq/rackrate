@@ -1,6 +1,7 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { Hero } from "@/components/landing/hero";
-import { Audiences, Features, LaunchVideo, Lifecycle, OracleSection, PayoffExplorer, StatsBand } from "@/components/landing/sections";
+import { LaunchVideo, PayoffExplorer } from "@/components/landing/sections";
+import { HowItWorks, Market, Problem, WhyOnchain } from "@/components/landing/story";
 import { ThreadsBackground } from "@/components/threads-bg";
 import { ButtonLink } from "@/components/ui";
 
@@ -8,13 +9,12 @@ export default function Home() {
   return (
     <>
       <Hero />
-      <StatsBand />
       <LaunchVideo />
-      <Audiences />
+      <Problem />
+      <Market />
+      <WhyOnchain />
+      <HowItWorks />
       <PayoffExplorer />
-      <Lifecycle />
-      <OracleSection />
-      <Features />
       <section className="mx-auto mt-28 max-w-[1280px] px-4 md:px-6">
         <div className="relative overflow-hidden rounded-2xl border border-line bg-surface px-6 py-16 text-center shadow-card md:py-24">
           <ThreadsBackground className="absolute inset-x-0 bottom-[-30%] h-[70%] opacity-50" />

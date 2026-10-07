@@ -67,6 +67,48 @@ export const DOCS: DocPage[] = [
     ),
   },
   {
+    slug: "why-rackrate",
+    title: "Why Rackrate",
+    description: "The problem, the market forming around it, and why it belongs onchain.",
+    body: (
+      <>
+        <h2>The problem</h2>
+        <p>
+          AI runs on rented GPUs, and the rental rate is set by supply and demand. The same H100 is listed at very different prices from one cloud to the next (the landing page charts every provider live), and rates move: Ornn&apos;s index showed Nvidia Blackwell rental prices rising 48% between mid-February and mid-April 2026, from $2.75 to $4.08 per GPU-hour (
+          <a href="https://thenextweb.com/news/ice-nyse-compute-futures-market-gpu-ai">The Next Web</a>).
+        </p>
+        <ul>
+          <li><strong>GPU owners</strong> (neoclouds, data centers, GPU hosts) finance hardware against rental income they cannot fix in advance. When rates fall, revenue falls.</li>
+          <li><strong>AI teams</strong> plan training runs and inference budgets at one price and pay another. When rates rise, budgets break.</li>
+        </ul>
+        <h2>The market is forming</h2>
+        <p>When a cost is large and volatile, markets build futures for it, as they did for oil, power and freight. Compute is next:</p>
+        <ul>
+          <li><strong>May 12, 2026.</strong> CME Group and Silicon Data announce compute futures on H100 and B200 rental prices.</li>
+          <li><strong>May 19, 2026.</strong> ICE, owner of the New York Stock Exchange, announces cash-settled GPU compute futures on Ornn&apos;s index (<a href="https://thenextweb.com/news/ice-nyse-compute-futures-market-gpu-ai">source</a>).</li>
+          <li><strong>Jun 24, 2026.</strong> Ornn raises $33M led by a16z to build GPU price hedging (<a href="https://aiweekly.co/alerts/ornn-raises-33m-led-by-a16z-to-build-gpu-compute-futures-market">source</a>).</li>
+          <li><strong>Oct 5, 2026.</strong> CME&apos;s Silicon Data H100 and B200 Rental Index Futures are scheduled to list on NYMEX: 730 GPU-hours (a month of one GPU) per contract, cash-settled (<a href="https://financefeeds.com/cme-is-about-to-list-futures-on-the-price-of-renting-a-gpu/">source</a>).</li>
+        </ul>
+        <p>
+          GPU rental spending is estimated at about $52 billion in 2026, growing around 30% a year (<a href="https://www.mordorintelligence.com/industry-reports/gpu-rental-market">Mordor Intelligence</a>; estimates vary with how the market is defined).
+        </p>
+        <h2>Why onchain</h2>
+        <p>Exchange-listed compute futures are built for institutions. Rackrate brings the same hedge to everyone who rents or rents out GPUs:</p>
+        <ul>
+          <li><strong>Access.</strong> Exchange futures need a futures broker account. Rackrate needs a wallet.</li>
+          <li><strong>Size and tenor.</strong> One CME contract is a month of one GPU (730 hours). A Rackrate contract is one week (168 hours), so hedges can be small and near-term.</li>
+          <li><strong>Risk.</strong> Futures use margin, marked to market daily. Every Rackrate pair is fully collateralized at $672 up front, so nothing can be liquidated and the maximum loss is known before trading.</li>
+          <li><strong>Hours and settlement.</strong> Kuru&apos;s onchain order book trades around the clock, and each week settles automatically after its last hour.</li>
+          <li><strong>Transparency.</strong> The index is built from openly licensed price data, and every hourly print is finalized and auditable onchain.</li>
+          <li><strong>Ownership.</strong> Positions are LONG and SHORT tokens held in your own wallet.</li>
+        </ul>
+        <p>
+          Monad makes this practical: an onchain order book and an oracle that finalizes every hour need fast, cheap blocks. See <Link href="/docs/how-it-works">How it works</Link> for the mechanics.
+        </p>
+      </>
+    ),
+  },
+  {
     slug: "how-it-works",
     title: "How it works",
     description: "Series, LONG and SHORT tokens, and how payouts are calculated.",

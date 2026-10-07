@@ -12,6 +12,14 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 > **Status: work in progress — Monad Metropolis hackathon (Track 01: Onchain Finance & Trading).**
 > **Testnet only.** From Wednesday 2026-10-07 18:00 UTC the hourly H100 index follows real GPU clouds' published on-demand H100 prices (median across providers, from [gpurentalprices.com](https://gpurentalprices.com) data, CC BY 4.0), with small modelled moves within each day. Earlier hours and demo weeks use a simulated index.
 
+## Why Rackrate
+
+**The problem.** AI runs on rented GPUs, and the rental rate moves with supply and demand. The same H100 is listed from about $2 to over $11 an hour across clouds, and Blackwell rental prices rose 48% in two months this year ([The Next Web](https://thenextweb.com/news/ice-nyse-compute-futures-market-gpu-ai)). GPU owners can't fix next week's revenue, and AI teams can't fix next week's cost.
+
+**The market.** Exchanges are turning GPU-hours into a tradable commodity. CME Group and Silicon Data (May 12, 2026) and ICE with Ornn (May 19, 2026) announced GPU compute futures. Ornn raised $33M led by a16z (Jun 24, 2026), and CME's H100 and B200 rental index futures were scheduled to list on NYMEX on Oct 5, 2026 ([source](https://financefeeds.com/cme-is-about-to-list-futures-on-the-price-of-renting-a-gpu/)). GPU rental spending is estimated at about $52B in 2026 ([Mordor Intelligence](https://www.mordorintelligence.com/industry-reports/gpu-rental-market)).
+
+**Why onchain.** Exchange futures need a futures broker account, trade monthly contracts (730 GPU-hours) and run on margin. Rackrate offers the same hedge to anyone with a wallet: one-week contracts (168 GPU-hours), fully collateralized with nothing to liquidate, trading 24/7 on Kuru, priced from open data with every hourly print onchain. The full argument, with sources, is on the app's [Why Rackrate](https://rackrate.len3.xyz/docs/why-rackrate) page.
+
 ## How it works
 
 1. **Price index.** Three publishers post an hourly GPU rental price. The oracle takes the median, rejects stale, out-of-bounds or jumping prints, and records gaps rather than guessing.
@@ -248,11 +256,11 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 - [viem](https://github.com/wevm/viem) (MIT)
 - [Chainlink CRE SDK](https://www.npmjs.com/package/@chainlink/cre-sdk) (BUSL-1.1), used as a dependency of the workflow and not vendored. The `IReceiver` interface follows the CRE documentation.
 - [Kuru](https://docs.kuru.io) onchain order book (testnet). `contracts/src/interfaces/IKuru.sol` declares only the function signatures Rackrate calls, taken from Kuru's public documentation.
-- [React Bits](https://reactbits.dev) components (Threads, CountUp, SpotlightCard) in `app/src/components/reactbits/`, used as part of the app under their MIT + Commons Clause license (see the `LICENSE.md` in that folder). They are not covered by this repository's MIT license.
+- [React Bits](https://reactbits.dev) component (Threads) in `app/src/components/reactbits/`, used as part of the app under their MIT + Commons Clause license (see the `LICENSE.md` in that folder). They are not covered by this repository's MIT license.
 - Design guidance from [Taste Skill](https://github.com/Leonxlnx/taste-skill) (MIT).
 - Next.js, React, Tailwind CSS, Motion, wagmi, TanStack Query, OGL, Phosphor Icons and the Geist typefaces (open source licenses).
 - [Envio HyperIndex](https://envio.dev) (`envio` package, used as a dependency under Envio's EULA, not vendored).
-- Photographs from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). The site credits them in its footer.
+- Photographs in the launch video, from Wikimedia Commons: CSIRO ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0)), Carl Lender ([CC BY 2.0](https://creativecommons.org/licenses/by/2.0)), Derrick Coetzee (CC0). The site credits them in its footer.
 
 ## AI tool disclosure
 

@@ -115,18 +115,6 @@ body {
   background-size: 128px 128px;
 }
 
-/* Photographs are toned into the palette so they sit in both themes. */
-.photo-tone {
-  filter: grayscale(1) contrast(1.05) brightness(0.95);
-}
-.photo-tint {
-  background: linear-gradient(160deg, rgb(85 50 224 / 0.55), rgb(13 11 18 / 0.35));
-  mix-blend-mode: multiply;
-}
-.dark .photo-tint {
-  background: linear-gradient(160deg, rgb(160 139 255 / 0.4), rgb(13 11 18 / 0.6));
-}
-
 /* Skeleton shimmer for loading states. */
 .skeleton {
   position: relative;
