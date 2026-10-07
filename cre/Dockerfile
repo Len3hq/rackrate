@@ -18,8 +18,8 @@ RUN cd cre/price-publisher && bun install --frozen-lockfile && bunx cre-setup
 COPY cre/project.yaml cre/secrets.yaml cre/
 COPY cre/scripts cre/scripts
 COPY cre/price-publisher cre/price-publisher
-# The workflow shares the bots' price model; it resolves viem from the workflow's own packages.
-COPY bots/src/lib/priceModel.ts bots/src/lib/priceModel.ts
+# The workflow shares the bots' price model and real-price reference; it resolves viem from the workflow's own packages.
+COPY bots/src/lib/priceModel.ts bots/src/lib/reference.ts bots/src/lib/
 RUN ln -s /repo/cre/price-publisher/node_modules bots/node_modules
 
 WORKDIR /repo/cre

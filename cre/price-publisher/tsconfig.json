@@ -13,5 +13,5 @@
     "noEmit": true,
     "types": []
   },
-  "include": ["main.ts", "../../bots/src/lib/priceModel.ts"]
+  "include": ["main.ts", "reference-http.ts", "../../bots/src/lib/priceModel.ts", "../../bots/src/lib/reference.ts"]
 }

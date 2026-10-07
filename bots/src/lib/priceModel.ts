@@ -1,5 +1,9 @@
 /**
- * Deterministic simulated GPU rental index (testnet only — not market data).
+ * Deterministic GPU rental index model (testnet).
+ *
+ * Two modes. Simulated: a fully modelled index around a fixed base, used by demo feeds and by hourly feeds before
+ * 2026-W42. Real-price: from 2026-W42 the hourly H100 feed's level follows real providers' published prices
+ * (reference.ts) and the model only adds small intraday texture (see `anchoredPrice`).
  *
  * Design goals:
  *  - Stateless: the price for any epoch is a pure function of (secret seeds, feed, epoch), so publishers,
@@ -11,6 +15,7 @@
  *    the oracle bounds and under the oracle's jump limit.
  */
 import { type Hex, encodePacked, keccak256 } from "viem";
+import { ANCHOR_RAMP_EPOCHS } from "./reference.ts";
 
 export interface ModelParams {
   /** Starting level in USD per GPU-hour. */
@@ -111,8 +116,50 @@ export function indexPrice(seedFor: SeedResolver, p: ModelParams, epoch: bigint)
 }
 
 /**
+ * Real-price mode (hourly feeds from 2026-W42): the hour's level comes from real providers' prices (reference.ts),
+ * and the model only adds intraday texture, sized like real listed prices move: a demand cycle peaking around
+ * 18:00 UTC (US working hours) and slow noise, about +/-2-3% in all. The seeds still drive the noise, so prints stay
+ * unpredictable until revealed and re-derivable afterwards.
+ */
+export interface Anchor {
+  /** First epoch priced from the reference. */
+  from: bigint;
+  /** Reference level for this epoch, USD per GPU-hour (reference.ts `referenceAt`). */
+  level: number;
+  /** Unix time (seconds) at which this epoch starts. */
+  epochStart: number;
+}
+
+/** Anchored index level (USD per GPU-hour) at an epoch, before the ramp from the simulated model. */
+export function anchoredPrice(seedFor: SeedResolver, p: ModelParams, epoch: bigint, a: Anchor): number {
+  const t = Number(epoch) * p.hoursPerEpoch;
+  const hourUtc = (a.epochStart % 86_400) / 3_600;
+  const logPrice =
+    Math.log(a.level) +
+    0.012 * Math.sin((2 * Math.PI * (hourUtc - 12)) / 24) +
+    0.012 * valueNoise(seedFor, p, t, 6, "intraday") +
+    0.01 * valueNoise(seedFor, p, t, 48, "drift");
+  return Math.exp(logPrice);
+}
+
+/**
+ * Index level at an epoch in either mode. Over the first ANCHOR_RAMP_EPOCHS of real-price mode the level moves
+ * geometrically from the last simulated print to the anchored level, so no single hour trips the oracle's jump limit.
+ */
+export function levelAt(seedFor: SeedResolver, p: ModelParams, epoch: bigint, anchor?: Anchor): number {
+  if (!anchor || epoch < anchor.from) return indexPrice(seedFor, p, epoch);
+  const target = anchoredPrice(seedFor, p, epoch, anchor);
+  const step = Number(epoch - anchor.from) + 1;
+  if (anchor.from === 0n || step >= ANCHOR_RAMP_EPOCHS) return target;
+  const last = indexPrice(seedFor, p, anchor.from - 1n);
+  const w = step / ANCHOR_RAMP_EPOCHS;
+  return Math.exp(Math.log(last) * (1 - w) + Math.log(target) * w);
+}
+
+/**
  * One publisher's submitted price in micro-dollars (6 decimals): the shared index plus a small
- * publisher-specific deviation, times any active demo scenario multiplier.
+ * publisher-specific deviation, times any active demo scenario multiplier. With an anchor (real-price mode) the
+ * deviation is smaller, matching how closely real price sources agree.
  */
 export function publisherPrice(
   seedFor: SeedResolver,
@@ -120,10 +167,12 @@ export function publisherPrice(
   epoch: bigint,
   publisher: string,
   scenarioKind = 0,
+  anchor?: Anchor,
 ): bigint {
   const seed = seedFor(periodOf(epoch, p.periodEpochs));
-  const deviation = 0.008 * (2 * u01(seed, `pub:${publisher.toLowerCase()}`, epoch) - 1);
+  const real = anchor !== undefined && epoch >= anchor.from;
+  const deviation = (real ? 0.003 : 0.008) * (2 * u01(seed, `pub:${publisher.toLowerCase()}`, epoch) - 1);
   const mult = SCENARIO_MULT[scenarioKind] ?? 1;
-  const price = indexPrice(seedFor, p, epoch) * (1 + deviation) * mult;
+  const price = levelAt(seedFor, p, epoch, anchor) * (1 + deviation) * mult;
   return BigInt(Math.round(price * 1e6));
 }

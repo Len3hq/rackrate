@@ -1,6 +1,6 @@
 import { ArrowRight } from "@phosphor-icons/react/dist/ssr";
 import { Hero } from "@/components/landing/hero";
-import { Audiences, Features, Lifecycle, OracleSection, PayoffExplorer, StatsBand } from "@/components/landing/sections";
+import { Audiences, Features, LaunchVideo, Lifecycle, OracleSection, PayoffExplorer, StatsBand } from "@/components/landing/sections";
 import { ThreadsBackground } from "@/components/threads-bg";
 import { ButtonLink } from "@/components/ui";
 
@@ -9,6 +9,7 @@ export default function Home() {
     <>
       <Hero />
       <StatsBand />
+      <LaunchVideo />
       <Audiences />
       <PayoffExplorer />
       <Lifecycle />
@@ -20,7 +21,7 @@ export default function Home() {
           <div className="relative">
             <h2 className="mx-auto max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl md:leading-[1.05]">Price next week&apos;s compute today.</h2>
             <p className="mx-auto mt-4 max-w-[52ch] text-ink-2">
-              Testnet only. The H100 index is simulated and rrUSD is a free test dollar from the faucet.
+              Testnet only. From 2026-W42 the H100 index follows real GPU cloud prices, and rrUSD is a free test dollar from the faucet.
             </p>
             <div className="mt-8 flex justify-center">
               <ButtonLink href="/trade" size="lg">

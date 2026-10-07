@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "sync-abis": "node scripts/sync-abis.mts"
+    "sync-abis": "node scripts/sync-abis.mts",
+    "sync-reference": "node scripts/sync-reference.mts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

@@ -4,7 +4,10 @@
  *
  *   fair = (clamp(expected window average, floor, cap) - floor) x epochs
  *   expected average = (prices printed so far in the window
- *                       + trailing one-week mean price x epochs still to come) / epochs
+ *                       + reference price x epochs still to come) / epochs
+ *
+ * The reference for hours still to come is the real H100 price level (lib/reference.ts) for hours the oracle prices
+ * from real providers' prices (hourly H100 from 2026-W42), and the trailing one-week mean of prints otherwise.
  *
  * Each requote is one Kuru `batchUpdate` per book (cancel the old ladder, place the new one). A book is requoted
  * only when it has no quotes, fair value moved more than --threshold bps, or one of its orders
@@ -26,11 +29,13 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { type Address, type Hex, decodeEventLog, maxUint256 } from "viem";
+import { type Address, type Hex, decodeEventLog, keccak256, maxUint256, toBytes } from "viem";
 import { type Ctx, chainTime, ctxFromKeyEnv, errorMessage, send } from "./lib/chain.ts";
 import { ROOT, loadAbi, loadDeployment, loadEnv, log } from "./lib/config.ts";
 import { type Level, DEFAULT_LEVELS, type Quotes, buildQuotes, fairLong, shouldRequote } from "./lib/fairValue.ts";
 import { erc20Abi, kuruMarginAccountAbi, kuruOrderBookAbi } from "./lib/kuru.ts";
+import { ANCHOR_START, REFERENCE_FEEDS, anchorStartEpoch, referenceAt } from "./lib/reference.ts";
+import { fetchLoader } from "./lib/referenceFetch.ts";
 import { HOURS_PER_WEEK } from "./lib/weeks.ts";
 
 loadEnv();
@@ -102,6 +107,7 @@ const read = <T>(address: Address, abi: unknown, functionName: string, args: rea
 
 interface OnchainFeed {
   epochLength: number;
+  genesis: bigint;
   nextEpoch: bigint;
   firstEpoch: bigint;
   lastPrice: bigint;
@@ -117,7 +123,16 @@ interface Market {
   quoting: boolean; // false once the window is about to end
 }
 
+/** Feeds priced from real providers' prices, by feed id. */
+const REAL_FEED_IDS = new Set([...REFERENCE_FEEDS].map((name) => keccak256(toBytes(name)).toLowerCase()));
+const anchorStart = Number(process.env.ANCHOR_START ?? ANCHOR_START);
+const loadReference = fetchLoader();
+/** Last real level seen, reused if the data source is briefly unreachable so quotes don't flap. */
+let lastRealLevel: number | null = null;
+
 async function liveMarkets(now: bigint): Promise<Market[]> {
+  const realLevel = (await referenceAt(Number(now), loadReference)) ?? lastRealLevel;
+  lastRealLevel = realLevel;
   const n = await read<bigint>(dep.SeriesFactory, factoryAbi, "seriesCount");
   const out: Market[] = [];
   for (let i = 0n; i < n; i++) {
@@ -163,7 +178,15 @@ async function liveMarkets(now: bigint): Promise<Market[]> {
     const firstOpen = f.nextEpoch > startEpoch ? f.nextEpoch : startEpoch;
     const remaining = endEpoch >= firstOpen ? endEpoch - firstOpen + 1n : 0n;
     const epochs = endEpoch - startEpoch + 1n;
-    const fair = fairLong({ floor, cap, epochs, printedSum, printedCount, remaining, spot: reference });
+    // Hours the oracle will price from real prices are expected at today's real level; earlier ones at the mean.
+    let spot = reference;
+    if (!isDemo && REAL_FEED_IDS.has(feedId.toLowerCase()) && realLevel !== null && remaining > 0n) {
+      const from = anchorStartEpoch(BigInt(f.genesis), BigInt(f.epochLength), anchorStart);
+      const realHours = from > endEpoch ? 0n : endEpoch - (from > firstOpen ? from : firstOpen) + 1n;
+      const realMicro = BigInt(Math.round(realLevel * 1e6));
+      spot = (reference * (remaining - realHours) + realMicro * realHours) / remaining;
+    }
+    const fair = fairLong({ floor, cap, epochs, printedSum, printedCount, remaining, spot });
     out.push({
       series,
       book,

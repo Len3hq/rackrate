@@ -81,7 +81,7 @@ const STEPS: Step[] = [
     body: (
       <>
         <p>H100 rental prices change every week. Rackrate lets GPU owners and AI teams agree on next week&apos;s price today.</p>
-        <p>Everything here runs on Monad testnet with free test dollars, and the H100 price is simulated.</p>
+        <p>Everything here runs on Monad testnet with free test dollars. From week W42 the H100 price follows what GPU clouds actually charge.</p>
       </>
     ),
     visual: (

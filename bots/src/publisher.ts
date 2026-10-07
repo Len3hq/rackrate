@@ -1,5 +1,8 @@
 /**
- * Rackrate oracle publisher (simulated testnet index).
+ * Rackrate oracle publisher.
+ *
+ * Prices follow the model in lib/priceModel.ts: simulated for demo feeds and before 2026-W42, and from 2026-W42 the
+ * hourly H100 feed follows real providers' published H100 prices (lib/reference.ts, fetched once per day).
  *
  * Every tick, for each configured feed:
  *   1. commit the seed hash for the current and next period (once each),
@@ -24,6 +27,8 @@ import {
 } from "./lib/chain.ts";
 import { env, loadAbi, loadDeployment, loadEnv, log } from "./lib/config.ts";
 import {
+  type Anchor,
+  gpuOf,
   paramsFor,
   periodOf,
   periodSeed,
@@ -32,6 +37,8 @@ import {
   seedCommitment,
   seedLookahead,
 } from "./lib/priceModel.ts";
+import { ANCHOR_START, REFERENCE_FEEDS, anchorStartEpoch, referenceAt } from "./lib/reference.ts";
+import { fetchLoader } from "./lib/referenceFetch.ts";
 
 loadEnv();
 
@@ -68,6 +75,11 @@ const oracleAbi = loadAbi("RackOracle");
 const ctx: Ctx = ctxFromKeyEnv(values.key);
 const me = ctx.account.address;
 const scope = `publisher ${me.slice(0, 8)}`;
+/** Start of real-price mode; ANCHOR_START overrides it for fork tests (unix seconds). */
+const anchorStart = Number(process.env.ANCHOR_START ?? ANCHOR_START);
+const loadReference = fetchLoader();
+/** Last reference level used per feed, so a brief outage of the data source never costs a printed hour. */
+const lastLevel = new Map<string, number>();
 const scenarioEvent = parseAbiItem("event Scenario(bytes32 indexed feedId, uint64 indexed epoch, uint8 kind)");
 
 interface FeedState {
@@ -166,13 +178,26 @@ async function tickFeed(feed: FeedState, now: bigint): Promise<void> {
 
   // 2. Submit prices for open epochs.
   if (f.isDemo) await scanScenarios(feed);
+  const real = !f.isDemo && REFERENCE_FEEDS.has(gpuOf(feed.name));
+  const anchorFrom = anchorStartEpoch(genesis, len, anchorStart);
   const first = cur - 1n > f.nextEpoch ? cur - 1n : f.nextEpoch;
   for (let e = first; e <= cur; e++) {
     // Backfill a past epoch only while it can still count: once its finalize delay has passed, anyone may
     // finalize it at any moment, so a late submission would likely be wasted gas.
     if (e < cur && now >= genesis + (e + 1n) * len + BigInt(f.finalizeDelay)) continue;
     if (await read<boolean>("hasSubmitted", [feed.id, e, me])) continue;
-    let price = publisherPrice(seedFor, params, e, me, scenarioKindAt(feed.scenarios, e));
+    let anchor: Anchor | undefined;
+    if (real && e >= anchorFrom) {
+      const epochStart = Number(genesis + e * len);
+      const level = (await referenceAt(epochStart, loadReference)) ?? lastLevel.get(feed.name);
+      if (level === undefined) {
+        log(scope, `${feed.name}: epoch ${e}: reference prices unavailable, skipping this tick`);
+        continue;
+      }
+      lastLevel.set(feed.name, level);
+      anchor = { from: anchorFrom, level, epochStart };
+    }
+    let price = publisherPrice(seedFor, params, e, me, scenarioKindAt(feed.scenarios, e), anchor);
     if (values.rogue) price *= ROGUE_MULT;
     let submitted: boolean;
     try {

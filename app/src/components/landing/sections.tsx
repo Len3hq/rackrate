@@ -70,6 +70,37 @@ export function StatsBand() {
 
 // ---------------------------------------------------------------------------------------------------------------
 
+/** The 40-second launch video. Nothing downloads until the visitor presses play (preload none, poster only). */
+export function LaunchVideo() {
+  return (
+    <Section id="video" className="mt-28">
+      <Reveal>
+        <h2 className="max-w-2xl text-3xl font-semibold tracking-tight md:text-5xl md:leading-[1.05]">Rackrate in 40 seconds.</h2>
+        <p className="mt-4 max-w-[60ch] text-base leading-relaxed text-ink-2 md:text-lg">
+          Who it is for, how a fully collateralized week works, and how it settles on an hourly index.
+        </p>
+      </Reveal>
+      <Reveal delay={0.08}>
+        <div className="mt-10 overflow-hidden rounded-2xl border border-line-strong bg-[#0d0b12] shadow-card">
+          <video
+            className="block aspect-video w-full"
+            controls
+            playsInline
+            preload="none"
+            poster="/video/rackrate-launch-poster.jpg"
+            aria-label="Rackrate launch video"
+          >
+            <source src="/video/rackrate-launch.mp4" type="video/mp4" />
+          </video>
+        </div>
+        <p className="mt-3 text-xs text-muted">Music: Ramzuto, &quot;Vida Loca&quot;.</p>
+      </Reveal>
+    </Section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+
 export function Audiences() {
   const cells = [
     {

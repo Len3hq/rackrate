@@ -61,7 +61,7 @@ export const DOCS: DocPage[] = [
         </p>
         <h2>On testnet</h2>
         <p>
-          Everything runs on Monad testnet. The H100 index is <strong>simulated</strong>, the publishers are operated by the team, and order book liquidity comes from a team-run test market maker. See <Link href="/docs/testnet">Testnet limits</Link>.
+          Everything runs on Monad testnet. From 2026-W42 the H100 index follows <strong>real rental prices</strong> published by GPU clouds (earlier weeks used a simulated index), the publishers are operated by the team, and order book liquidity comes from a team-run test market maker. See <Link href="/docs/testnet">Testnet limits</Link>.
         </p>
       </>
     ),
@@ -178,13 +178,13 @@ SHORT pays (cap − A)   × 168`}</code>
     body: (
       <>
         <p>
-          Settlement uses <strong>RackOracle</strong>, a multi-publisher price feed on Monad. No existing oracle network publishes GPU rental prices on Monad, and the commercial GPU indices do not allow republishing, so Rackrate runs its own.
+          Settlement uses <strong>RackOracle</strong>, a multi-publisher price feed on Monad. No existing oracle network publishes GPU rental prices on Monad, and the commercial GPU indices do not allow republishing or settlement use, so Rackrate runs its own, built from openly licensed price data.
         </p>
         <h2>Publishers</h2>
         <p>Three allowlisted publishers submit a price every hour:</p>
         <ul>
           <li>
-            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow computes the price and delivers a report to the <code>CreReceiver</code> contract. Until Chainlink grants deploy access, it runs in CRE simulation mode, with each report delivered onchain through Chainlink&apos;s test forwarder.
+            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow fetches the real price data over CRE&apos;s HTTP capability, computes the price and delivers a report to the <code>CreReceiver</code> contract. Until Chainlink grants deploy access, it runs in CRE simulation mode, with each report delivered onchain through Chainlink&apos;s test forwarder.
           </li>
           <li>
             <strong>B and C, bots.</strong> Two independent processes with separate keys.
@@ -197,9 +197,18 @@ SHORT pays (cap − A)   × 168`}</code>
           <li>Hours finalize strictly in order. An hour without enough valid data is recorded as a <strong>gap</strong> and is never filled in.</li>
           <li>Feed parameters are fixed when the feed is created. Nobody, including the team, can change the rules for a live series.</li>
         </ul>
-        <h2>A simulated, auditable index</h2>
+        <h2>Real prices, auditable hours</h2>
         <p>
-          On testnet the index is simulated: a deterministic function of secret per-period seeds (a daily cycle, multi-day drift and occasional regime shocks). Each seed is <strong>committed onchain before any price uses it</strong> and revealed afterwards, so prices cannot be predicted in advance but anyone can re-derive every submission once seeds are revealed. The repository includes an audit script that does exactly that.
+          From 2026-W42 (Monday, October 12) the H100 index follows <strong>real prices</strong>. Each day Rackrate takes every GPU cloud&apos;s published on-demand H100 SXM price, uses each provider&apos;s median, and then the <strong>median across providers</strong>. The data comes from the open daily snapshots of{" "}
+          <a href="https://gpurentalprices.com">gpurentalprices.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), which record each provider&apos;s own pricing page or API.
+        </p>
+        <ul>
+          <li>An hour is priced from the two previous days&apos; values, moving smoothly between them through the day, so every publisher works from the same published snapshots.</li>
+          <li>Listed prices change rarely, so the model adds only small intraday texture: a daily demand cycle and slow noise, about 2 to 3% in all.</li>
+          <li>That texture comes from secret per-period seeds. Each seed is <strong>committed onchain before any price uses it</strong> and revealed afterwards, so hours cannot be predicted in advance but anyone can re-derive every submission from the revealed seeds and the public snapshots. The repository includes an audit script that does exactly that.</li>
+        </ul>
+        <p>
+          Weeks before W42, and demo weeks, use a fully simulated index from the same committed seeds.
         </p>
         <p>
           See every hour on the <Link href="/oracle">Oracle</Link> page.
@@ -301,7 +310,7 @@ SHORT pays (cap − A)   × 168`}</code>
   {
     slug: "testnet",
     title: "Testnet limits",
-    description: "What is real, what is simulated, and what is run by the team.",
+    description: "What is real, what is modelled, and what is run by the team.",
     body: (
       <>
         <ul>
@@ -309,13 +318,13 @@ SHORT pays (cap − A)   × 168`}</code>
             <strong>Testnet only.</strong> All tokens are test assets with no monetary value. LONG and SHORT are commodity derivatives, which is why Rackrate is not offered on mainnet.
           </li>
           <li>
-            <strong>Simulated index.</strong> The H100 price is generated by a published model from committed seeds, not taken from real rental markets.
+            <strong>Real level, modelled hours.</strong> From 2026-W42 the index follows the median of GPU clouds&apos; published H100 prices, which update daily; the hour-to-hour movement within a day is modelled. These are listed on-demand prices, not negotiated contract prices. Weeks before W42 and demo weeks use a simulated index.
           </li>
           <li>
             <strong>Team-run publishers.</strong> All three publishers are operated by the team. In production the publishers would be GPU hosts signing their own rental rates.
           </li>
           <li>
-            <strong>CRE in simulation mode.</strong> The Chainlink workflow runs on the team&apos;s machine until CRE deploy access is granted. Switching to Chainlink&apos;s network needs no contract redeploy.
+            <strong>CRE in simulation mode.</strong> The Chainlink workflow runs on the team&apos;s server until CRE deploy access is granted. Switching to Chainlink&apos;s network needs no contract redeploy.
           </li>
           <li>
             <strong>Test liquidity.</strong> Quotes on the books come from a team-run market maker that only places resting orders. It is not organic volume.

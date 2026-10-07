@@ -3,13 +3,14 @@
  *
  * On each cron trigger, for every configured hourly feed:
  *   1. read the feed state, chain time and this publisher's submissions / seed commitments (two Multicall3 reads),
- *   2. compute the simulated GPU index price with the same deterministic model the publisher bots use
- *      (secret master seed from CRE Secrets),
+ *   2. compute the index price with the same deterministic model the publisher bots use (secret master seed from
+ *      CRE Secrets); from 2026-W42 the hourly H100 level follows real providers' published H100 prices, fetched
+ *      through CRE's HTTP capability with the nodes agreeing on the median (bots/src/lib/reference.ts),
  *   3. build a batch of oracle actions (commit due seeds, submit the current epoch, reveal due seeds),
  *   4. sign it as a CRE report and deliver it to CreReceiver through the Chainlink forwarder.
  *
  * Every node computes the same actions from the same finalized chain state and secret, so the report reaches
- * consensus. Testnet only: the index is simulated, not market data.
+ * consensus. Testnet: before 2026-W42 (and on demo feeds) the index is simulated, not market data.
  */
 import {
   CronCapability,
@@ -37,6 +38,8 @@ import {
   zeroAddress,
 } from "viem";
 import {
+  type Anchor,
+  gpuOf,
   paramsFor,
   periodOf,
   periodSeed,
@@ -44,6 +47,8 @@ import {
   seedCommitment,
   seedLookahead,
 } from "../../bots/src/lib/priceModel.ts";
+import { ANCHOR_START, REFERENCE_FEEDS, anchorStartEpoch } from "../../bots/src/lib/reference.ts";
+import { referenceLevel } from "./reference-http.ts";
 
 type Config = {
   schedule: string;
@@ -58,6 +63,8 @@ type Config = {
   gasPerSubmit: number;
   gasPerCommit: number;
   gasPerReveal: number;
+  /** Optional override of the real-price start (unix seconds), for tests. */
+  anchorStart?: number;
 };
 
 const ActionKind = { Submit: 0, CommitSeed: 1, RevealSeed: 2 } as const;
@@ -188,11 +195,24 @@ function actionsForFeed(runtime: Runtime<Config>, evm: EVMClient, feedName: stri
     actions.push({ kind: ActionKind.CommitSeed, feedId, a: q, b: revealAfter, data: seedCommitment(seedFor(q)) });
   });
   // 2. Submit prices for open epochs (never for an epoch other publishers already finalized).
+  const real = REFERENCE_FEEDS.has(gpuOf(feedName));
+  const anchorFrom = anchorStartEpoch(feed.genesis, len, cfg.anchorStart ?? ANCHOR_START);
+  const memo = new Map<string, number | null>();
   epochs.forEach((e, i) => {
     if (submitted[i] || e < feed.nextEpoch) return;
-    const price = publisherPrice(seedFor, params, e, me);
+    let anchor: Anchor | undefined;
+    if (real && e >= anchorFrom) {
+      const epochStart = Number(feed.genesis + e * len);
+      const level = referenceLevel(runtime, epochStart, memo);
+      if (level === null) {
+        runtime.log(`${feedName}: epoch ${e}: reference prices unavailable, not submitting`);
+        return;
+      }
+      anchor = { from: anchorFrom, level, epochStart };
+    }
+    const price = publisherPrice(seedFor, params, e, me, 0, anchor);
     actions.push({ kind: ActionKind.Submit, feedId, a: e, b: price, data: ZERO_HASH });
-    runtime.log(`${feedName}: epoch ${e} price $${(Number(price) / 1e6).toFixed(4)}`);
+    runtime.log(`${feedName}: epoch ${e} price $${(Number(price) / 1e6).toFixed(4)}${anchor ? ` (real level $${anchor.level.toFixed(4)})` : ""}`);
   });
   // 3. Reveal seeds whose reveal time has passed.
   revealRange.forEach((q, i) => {

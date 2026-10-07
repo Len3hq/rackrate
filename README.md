@@ -10,7 +10,7 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 - Contracts trade on **Kuru's onchain order book** and settle on the weekly average of an hourly price index from a **multi-publisher oracle**, with one publisher orchestrated by **Chainlink CRE**.
 
 > **Status: work in progress — Monad Metropolis hackathon (Track 01: Onchain Finance & Trading).**
-> **Testnet only. The price index on testnet is simulated for demonstration and is not market data.**
+> **Testnet only.** From 2026-W42 (Monday, Oct 12) the hourly H100 index follows real GPU clouds' published on-demand H100 prices (median across providers, from [gpurentalprices.com](https://gpurentalprices.com) data, CC BY 4.0), with small modelled moves within each day. Earlier weeks and demo weeks use a simulated index.
 
 ## How it works
 
@@ -81,12 +81,16 @@ Requires Node 22.6+ and pnpm. Run `forge build` in `contracts/` first (the bots 
 
 ```sh
 pnpm install
-pnpm -C bots test          # price-model unit tests
+pnpm -C bots test          # price-model and real-price reference unit tests
 pnpm -C bots typecheck
 
 # Live publishers B and C on the hourly feeds, in the background (keys and PRICE_MASTER_SECRET from contracts/.env)
 bots/scripts/publishers.sh start H100      # or H100,H200,B200
 bots/scripts/publishers.sh status          # also: logs, stop
+
+# Real prices: from 2026-W42 the publishers price H100 hours from the day's real reference (bots/src/lib/reference.ts),
+# fetched once a day from public snapshots. After changing that file, refresh the web app's copy:
+pnpm -C app sync-reference
 
 # Allowlist the publisher wallets on feeds (owner only, once)
 cd contracts && PUBLISH_FEEDS=H100 forge script script/SetPublishers.s.sol --rpc-url $MONAD_RPC_URL --broadcast
@@ -172,13 +176,14 @@ bots/scripts/mm-fork.sh                # end-to-end on a local fork: quote, trad
 
 Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) workflow (`cre/price-publisher`). Each hour it:
 1. reads the feed state through Multicall3;
-2. computes the price with the **same model file** the bots use, with the secret master seed held in CRE Secrets;
-3. sends a signed report through Chainlink's forwarder to `CreReceiver`.
+2. from 2026-W42, fetches the day's real H100 prices through **CRE's HTTP capability** (each node computes the median across providers; the nodes agree on the median of their results);
+3. computes the price with the **same model files** the bots use (`bots/src/lib/priceModel.ts`, `reference.ts`), with the secret master seed held in CRE Secrets;
+4. sends a signed report through Chainlink's forwarder to `CreReceiver`.
 
 `CreReceiver` is the allowlisted publisher address. It executes the report's batch of oracle actions (commit seeds, submit price, reveal seeds), each in isolation.
 
 ```sh
-cd cre/price-publisher && bun install
+cd cre/price-publisher && bun install && bun test   # unit tests of the real-price fetch, with the SDK's HTTP mock
 cre/scripts/run.sh once      # one simulation with real onchain writes (cre workflow simulate --broadcast)
 cre/scripts/run.sh start     # hourly, in the background (also: status, logs, stop)
 ```
@@ -230,13 +235,14 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 
 ## Honest limits (testnet)
 
-- The price index is **simulated**, not real market data.
+- From 2026-W42 the index **level is real** (GPU clouds' published on-demand H100 prices, which change daily at most); the movement **within a day is modelled** (about ±2–3%). These are listed prices, not negotiated contract rates. Weeks before W42 and demo weeks use a simulated index.
 - All oracle publishers (two bots and a Chainlink CRE workflow) are operated by the team. On mainnet, the publishers would be GPU hosts signing their own rental rates.
-- The CRE workflow currently runs in Chainlink's simulation mode on the team's machine, pending CRE deploy access.
+- The CRE workflow currently runs in Chainlink's simulation mode on the team's server, pending CRE deploy access.
 - Liquidity on the order books comes from a team-run test market maker. **It is not organic volume.**
 
 ## Attribution
 
+- H100 price data: [gpurentalprices.com](https://gpurentalprices.com), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Rackrate derives its index from it (median of each provider's on-demand H100 SXM price, then the median across providers).
 - [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) (MIT)
 - [forge-std](https://github.com/foundry-rs/forge-std) (MIT/Apache-2.0)
 - [viem](https://github.com/wevm/viem) (MIT)

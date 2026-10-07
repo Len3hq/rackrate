@@ -3,26 +3,38 @@
 import { ArrowRight } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { impliedRate, liveWeekly, useMarkets, useOracle } from "@/lib/data";
+import { impliedRate, liveWeekly, useMarkets } from "@/lib/data";
+import { useReference } from "@/lib/reference-data";
 import { usd, utcDay } from "@/lib/format";
 import { PriceChart } from "../price-chart";
 import { Skeleton } from "../ui";
 
-/** Hero visual: the live H100 forward curve, read from the Kuru books and the oracle on every refresh. */
+const dayTime = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
+
+/**
+ * Hero visual: the real H100 rental price over the last 7 days (the index the oracle follows), and the live forward
+ * curve read from the Kuru books.
+ */
 export function LiveCurve() {
   const markets = useMarkets();
-  const oracle = useOracle(48);
+  const ref = useReference();
   const now = Math.floor(Date.now() / 1000);
   const weeks = liveWeekly(markets.data, now).slice(0, 4);
-  const failed = markets.isError || oracle.isError;
+  const failed = markets.isError;
+  const days = ref.data?.days ?? [];
+  const latest = days.at(-1);
+  const change = days.length > 1 && latest ? latest.index / days[0].index - 1 : null;
 
   return (
     <div className="relative rounded-2xl border border-line-strong bg-surface/85 p-5 shadow-card backdrop-blur-md md:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">H100 index, $/GPU-hour</p>
-          {oracle.data ? (
-            <p className="mt-1 font-mono text-3xl font-medium tracking-tight tnum">{usd(oracle.data.lastPrice, 4)}</p>
+          <p className="text-sm text-muted">H100 rental price, last 7 days</p>
+          {latest ? (
+            <p className="mt-1 font-mono text-3xl font-medium tracking-tight tnum">
+              {usd(latest.index)}
+              <span className="text-base text-muted">/GPU-hr</span>
+            </p>
           ) : (
             <Skeleton className="mt-2 h-8 w-32" />
           )}
@@ -32,17 +44,46 @@ export function LiveCurve() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint opacity-60 motion-reduce:hidden" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-mint" />
           </span>
-          Live on testnet
+          Real market prices
         </span>
       </div>
 
       <div className="mt-3 -mx-1">
-        {oracle.data ? <PriceChart points={oracle.data.points} height={92} compact /> : <Skeleton className="h-[92px] w-full" />}
+        {days.length > 0 ? (
+          <PriceChart
+            points={days.map((d) => ({ time: dayTime(d.date), price: d.index, low: d.low, high: d.high }))}
+            height={92}
+            compact
+            dots
+            decimals={2}
+            timeLabel={utcDay}
+            label="H100 rental price, daily median across providers, last 7 days"
+          />
+        ) : ref.isError ? (
+          <p className="flex h-[92px] items-center text-sm text-muted">Price data is unavailable right now.</p>
+        ) : (
+          <Skeleton className="h-[92px] w-full" />
+        )}
       </div>
+      {latest && (
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          Median on-demand H100 SXM price across {latest.providers} GPU clouds
+          {change !== null && <>, {change === 0 ? "unchanged" : `${change > 0 ? "up" : "down"} ${Math.abs(change * 100).toFixed(1)}%`} over the week</>}.
+          Shaded: the middle half of providers, {usd(latest.low)} to {usd(latest.high)}. Data:{" "}
+          <a href={ref.data?.source.url} target="_blank" rel="noreferrer" className="underline decoration-line-strong underline-offset-2 hover:text-ink">
+            gpurentalprices.com
+          </a>
+          ,{" "}
+          <a href={ref.data?.source.licenseUrl} target="_blank" rel="noreferrer" className="underline decoration-line-strong underline-offset-2 hover:text-ink">
+            CC BY 4.0
+          </a>
+          .
+        </p>
+      )}
 
       <div className="mt-4 border-t border-line pt-3">
         <div className="grid grid-cols-[1fr_auto_auto] gap-x-6 pb-2 text-xs text-muted">
-          <span>Week</span>
+          <span>Week (testnet book)</span>
           <span className="text-right">Sell at</span>
           <span className="text-right">Buy at</span>
         </div>
