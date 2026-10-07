@@ -61,7 +61,7 @@ export const DOCS: DocPage[] = [
         </p>
         <h2>On testnet</h2>
         <p>
-          Everything runs on Monad testnet. From 2026-W42 the H100 index follows <strong>real rental prices</strong> published by GPU clouds (earlier weeks used a simulated index), the publishers are operated by the team, and order book liquidity comes from a team-run test market maker. See <Link href="/docs/testnet">Testnet limits</Link>.
+          Everything runs on Monad testnet. The H100 index follows <strong>real rental prices</strong> published by GPU clouds (hours before Oct 7, 2026 used a simulated index), the publishers are operated by the team, and order book liquidity comes from a team-run test market maker. See <Link href="/docs/testnet">Testnet limits</Link>.
         </p>
       </>
     ),
@@ -199,7 +199,7 @@ SHORT pays (cap − A)   × 168`}</code>
         </ul>
         <h2>Real prices, auditable hours</h2>
         <p>
-          From 2026-W42 (Monday, October 12) the H100 index follows <strong>real prices</strong>. Each day Rackrate takes every GPU cloud&apos;s published on-demand H100 SXM price, uses each provider&apos;s median, and then the <strong>median across providers</strong>. The data comes from the open daily snapshots of{" "}
+          Since Wednesday, October 7, 2026 (18:00 UTC) the H100 index follows <strong>real prices</strong>. Each day Rackrate takes every GPU cloud&apos;s published on-demand H100 SXM price, uses each provider&apos;s median, and then the <strong>median across providers</strong>. The data comes from the open daily snapshots of{" "}
           <a href="https://gpurentalprices.com">gpurentalprices.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), which record each provider&apos;s own pricing page or API.
         </p>
         <ul>
@@ -208,7 +208,7 @@ SHORT pays (cap − A)   × 168`}</code>
           <li>That texture comes from secret per-period seeds. Each seed is <strong>committed onchain before any price uses it</strong> and revealed afterwards, so hours cannot be predicted in advance but anyone can re-derive every submission from the revealed seeds and the public snapshots. The repository includes an audit script that does exactly that.</li>
         </ul>
         <p>
-          Weeks before W42, and demo weeks, use a fully simulated index from the same committed seeds.
+          Hours before the switch, and demo weeks, use a fully simulated index from the same committed seeds. Week 2026-W41 therefore settles on a mix of simulated and real hours.
         </p>
         <p>
           See every hour on the <Link href="/oracle">Oracle</Link> page.
@@ -318,7 +318,7 @@ SHORT pays (cap − A)   × 168`}</code>
             <strong>Testnet only.</strong> All tokens are test assets with no monetary value. LONG and SHORT are commodity derivatives, which is why Rackrate is not offered on mainnet.
           </li>
           <li>
-            <strong>Real level, modelled hours.</strong> From 2026-W42 the index follows the median of GPU clouds&apos; published H100 prices, which update daily; the hour-to-hour movement within a day is modelled. These are listed on-demand prices, not negotiated contract prices. Weeks before W42 and demo weeks use a simulated index.
+            <strong>Real level, modelled hours.</strong> Since Oct 7, 2026 the index follows the median of GPU clouds&apos; published H100 prices, which update daily; the hour-to-hour movement within a day is modelled. These are listed on-demand prices, not negotiated contract prices. Earlier hours and demo weeks use a simulated index.
           </li>
           <li>
             <strong>Team-run publishers.</strong> All three publishers are operated by the team. In production the publishers would be GPU hosts signing their own rental rates.

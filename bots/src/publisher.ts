@@ -1,7 +1,7 @@
 /**
  * Rackrate oracle publisher.
  *
- * Prices follow the model in lib/priceModel.ts: simulated for demo feeds and before 2026-W42, and from 2026-W42 the
+ * Prices follow the model in lib/priceModel.ts: simulated for demo feeds and before 2026-10-07 18:00 UTC, and from then the
  * hourly H100 feed follows real providers' published H100 prices (lib/reference.ts, fetched once per day).
  *
  * Every tick, for each configured feed:

@@ -7,7 +7,7 @@
  *                       + reference price x epochs still to come) / epochs
  *
  * The reference for hours still to come is the real H100 price level (lib/reference.ts) for hours the oracle prices
- * from real providers' prices (hourly H100 from 2026-W42), and the trailing one-week mean of prints otherwise.
+ * from real providers' prices (hourly H100 from 2026-10-07 18:00 UTC), and the trailing one-week mean of prints otherwise.
  *
  * Each requote is one Kuru `batchUpdate` per book (cancel the old ladder, place the new one). A book is requoted
  * only when it has no quotes, fair value moved more than --threshold bps, or one of its orders

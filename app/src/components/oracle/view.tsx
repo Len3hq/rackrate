@@ -50,7 +50,7 @@ export function OracleView() {
     <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-6 md:py-14">
       <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">H100 index oracle</h1>
       <p className="mt-2 max-w-[70ch] text-ink-2">
-        One price per hour, finalized onchain from independent publishers. From 2026-W42 it follows the median of GPU clouds&apos; published H100 prices, with small modelled intraday moves; earlier hours are simulated. Anyone can re-derive every print once its seeds are revealed.
+        One price per hour, finalized onchain from independent publishers. Since Oct 7, 2026 (18:00 UTC) it follows the median of GPU clouds&apos; published H100 prices, with small modelled intraday moves; earlier hours were simulated. Anyone can re-derive every print once its seeds are revealed.
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">

@@ -48,7 +48,7 @@ test("an hour is priced from the two days before its UTC day, moving through the
   assert.ok(Math.abs(anchorLevel(3, 3.3, 1) - 3.3) < 1e-12);
 });
 
-test("real-price mode starts at the first epoch on or after Monday 2026-10-12 00:00 UTC", () => {
+test("real-price mode starts at the first epoch on or after the switch time", () => {
   const genesis = BigInt(ANCHOR_START - 100 * 3600);
   assert.equal(anchorStartEpoch(genesis, 3600n), 100n);
   assert.equal(anchorStartEpoch(genesis + 1n, 3600n), 100n); // rounds up to the first full hour after the start
@@ -68,8 +68,9 @@ const MASTER = keccak256(toBytes("test master")) as Hex;
 const FEED = keccak256(toBytes("H100"));
 const seedFor = (q: bigint) => periodSeed(MASTER, FEED, q);
 const P = paramsFor("H100", false);
-const GENESIS = ANCHOR_START - 1000 * 3600;
-const FROM = 1000n;
+// A feed whose epochs start on UTC hours (genesis at midnight), switching to real prices at a midnight epoch.
+const GENESIS = Date.UTC(2026, 8, 1) / 1000;
+const FROM = 1008n;
 const anchor = (e: bigint, level: number): Anchor => ({ from: FROM, level, epochStart: GENESIS + Number(e) * 3600 });
 
 test("real-price hours stay within about 3.5% of the real level", () => {

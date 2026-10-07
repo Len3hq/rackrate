@@ -10,7 +10,7 @@ Rackrate is a market for fully collateralized, cash-settled weekly forwards on G
 - Contracts trade on **Kuru's onchain order book** and settle on the weekly average of an hourly price index from a **multi-publisher oracle**, with one publisher orchestrated by **Chainlink CRE**.
 
 > **Status: work in progress — Monad Metropolis hackathon (Track 01: Onchain Finance & Trading).**
-> **Testnet only.** From 2026-W42 (Monday, Oct 12) the hourly H100 index follows real GPU clouds' published on-demand H100 prices (median across providers, from [gpurentalprices.com](https://gpurentalprices.com) data, CC BY 4.0), with small modelled moves within each day. Earlier weeks and demo weeks use a simulated index.
+> **Testnet only.** From Wednesday 2026-10-07 18:00 UTC the hourly H100 index follows real GPU clouds' published on-demand H100 prices (median across providers, from [gpurentalprices.com](https://gpurentalprices.com) data, CC BY 4.0), with small modelled moves within each day. Earlier hours and demo weeks use a simulated index.
 
 ## How it works
 
@@ -88,7 +88,7 @@ pnpm -C bots typecheck
 bots/scripts/publishers.sh start H100      # or H100,H200,B200
 bots/scripts/publishers.sh status          # also: logs, stop
 
-# Real prices: from 2026-W42 the publishers price H100 hours from the day's real reference (bots/src/lib/reference.ts),
+# Real prices: from 2026-10-07 18:00 UTC the publishers price H100 hours from the day's real reference (bots/src/lib/reference.ts),
 # fetched once a day from public snapshots. After changing that file, refresh the web app's copy:
 pnpm -C app sync-reference
 
@@ -176,7 +176,7 @@ bots/scripts/mm-fork.sh                # end-to-end on a local fork: quote, trad
 
 Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) workflow (`cre/price-publisher`). Each hour it:
 1. reads the feed state through Multicall3;
-2. from 2026-W42, fetches the day's real H100 prices through **CRE's HTTP capability** (each node computes the median across providers; the nodes agree on the median of their results);
+2. from 2026-10-07 18:00 UTC, fetches the day's real H100 prices through **CRE's HTTP capability** (each node computes the median across providers; the nodes agree on the median of their results);
 3. computes the price with the **same model files** the bots use (`bots/src/lib/priceModel.ts`, `reference.ts`), with the secret master seed held in CRE Secrets;
 4. sends a signed report through Chainlink's forwarder to `CreReceiver`.
 
@@ -235,7 +235,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 
 ## Honest limits (testnet)
 
-- From 2026-W42 the index **level is real** (GPU clouds' published on-demand H100 prices, which change daily at most); the movement **within a day is modelled** (about ±2–3%). These are listed prices, not negotiated contract rates. Weeks before W42 and demo weeks use a simulated index.
+- Since 2026-10-07 18:00 UTC the index **level is real** (GPU clouds' published on-demand H100 prices, which change daily at most); the movement **within a day is modelled** (about ±2–3%). These are listed prices, not negotiated contract rates. Earlier hours and demo weeks use a simulated index; 2026-W41 settles on a mix of both.
 - All oracle publishers (two bots and a Chainlink CRE workflow) are operated by the team. On mainnet, the publishers would be GPU hosts signing their own rental rates.
 - The CRE workflow currently runs in Chainlink's simulation mode on the team's server, pending CRE deploy access.
 - Liquidity on the order books comes from a team-run test market maker. **It is not organic volume.**

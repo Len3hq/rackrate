@@ -2,7 +2,7 @@
  * Deterministic GPU rental index model (testnet).
  *
  * Two modes. Simulated: a fully modelled index around a fixed base, used by demo feeds and by hourly feeds before
- * 2026-W42. Real-price: from 2026-W42 the hourly H100 feed's level follows real providers' published prices
+ * 2026-10-07 18:00 UTC. Real-price: from then the hourly H100 feed's level follows real providers' published prices
  * (reference.ts) and the model only adds small intraday texture (see `anchoredPrice`).
  *
  * Design goals:
@@ -116,7 +116,7 @@ export function indexPrice(seedFor: SeedResolver, p: ModelParams, epoch: bigint)
 }
 
 /**
- * Real-price mode (hourly feeds from 2026-W42): the hour's level comes from real providers' prices (reference.ts),
+ * Real-price mode (hourly H100 from 2026-10-07 18:00 UTC): the hour's level comes from real providers' prices (reference.ts),
  * and the model only adds intraday texture, sized like real listed prices move: a demand cycle peaking around
  * 18:00 UTC (US working hours) and slow noise, about +/-2-3% in all. The seeds still drive the noise, so prints stay
  * unpredictable until revealed and re-derivable afterwards.

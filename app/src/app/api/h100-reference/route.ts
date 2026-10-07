@@ -1,6 +1,6 @@
 /**
  * Real H100 rental prices for the last 7 days: per day, the median of providers' published on-demand H100 SXM
- * prices (the same index the oracle follows from 2026-W42), with the middle half of providers as a range.
+ * prices (the same index the oracle follows since 2026-10-07), with the middle half of providers as a range.
  * Built from the open daily snapshots of gpurentalprices.com (CC BY 4.0) and cached for an hour.
  */
 import { MIN_PROVIDERS, type Offer, REFERENCE_SOURCE, providerPrices, snapshotUrl, utcDate } from "@/lib/reference";

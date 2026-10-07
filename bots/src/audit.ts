@@ -5,7 +5,7 @@
  *   node src/audit.ts --feed H100_DEMO_1790925309 --from-block 67481015
  *
  * A submission is "unverifiable" until every seed it depends on (its period plus lookahead) is revealed. Hours in
- * real-price mode (hourly H100 from 2026-W42) also need that day's public reference snapshots (lib/reference.ts),
+ * real-price mode (hourly H100 from 2026-10-07 18:00 UTC) also need that day's public reference snapshots (lib/reference.ts),
  * which the data source keeps for a rolling window.
  */
 import { parseArgs } from "node:util";

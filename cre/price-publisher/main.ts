@@ -4,13 +4,13 @@
  * On each cron trigger, for every configured hourly feed:
  *   1. read the feed state, chain time and this publisher's submissions / seed commitments (two Multicall3 reads),
  *   2. compute the index price with the same deterministic model the publisher bots use (secret master seed from
- *      CRE Secrets); from 2026-W42 the hourly H100 level follows real providers' published H100 prices, fetched
+ *      CRE Secrets); from 2026-10-07 18:00 UTC the hourly H100 level follows real providers' published H100 prices, fetched
  *      through CRE's HTTP capability with the nodes agreeing on the median (bots/src/lib/reference.ts),
  *   3. build a batch of oracle actions (commit due seeds, submit the current epoch, reveal due seeds),
  *   4. sign it as a CRE report and deliver it to CreReceiver through the Chainlink forwarder.
  *
  * Every node computes the same actions from the same finalized chain state and secret, so the report reaches
- * consensus. Testnet: before 2026-W42 (and on demo feeds) the index is simulated, not market data.
+ * consensus. Testnet: before 2026-10-07 18:00 UTC (and on demo feeds) the index is simulated, not market data.
  */
 import {
   CronCapability,

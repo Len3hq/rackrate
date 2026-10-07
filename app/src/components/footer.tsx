@@ -14,7 +14,7 @@ export function Footer() {
             <span className="font-semibold">Rackrate</span>
           </div>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Weekly GPU rental-rate forwards on Monad testnet. From 2026-W42 the H100 index follows real GPU cloud prices (gpurentalprices.com, CC BY 4.0); every token is a test asset with no monetary value.
+            Weekly GPU rental-rate forwards on Monad testnet. The H100 index follows real GPU cloud prices (gpurentalprices.com, CC BY 4.0); every token is a test asset with no monetary value.
           </p>
         </div>
         <div>

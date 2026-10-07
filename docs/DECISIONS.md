@@ -235,25 +235,25 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - The indexer is a third deployed component (Envio Cloud's free development plan, or self-hosted) and needs a HyperSync API token.
 - This supersedes the "no indexer" part of 014. Chain reads remain the source of truth for anything a transaction depends on.
 
-### 016 — The H100 index follows real published prices from 2026-W42
+### 016 — The H100 index follows real published prices from 2026-10-07
 **Date:** 2026-10-07
 **Decision:**
-- From Monday 2026-10-12 00:00 UTC (the first hour of 2026-W42), the hourly H100 feed's level is the median of GPU clouds' published on-demand H100 SXM prices: each provider's median first, then the median across providers (at least five). The data comes from the open daily snapshots of gpurentalprices.com (CC BY 4.0), credited in the app and the README.
+- From Wednesday 2026-10-07 18:00 UTC, the hourly H100 feed's level is the median of GPU clouds' published on-demand H100 SXM prices: each provider's median first, then the median across providers (at least five). The data comes from the open daily snapshots of gpurentalprices.com (CC BY 4.0), credited in the app and the README.
 - An hour is priced from the two previous UTC days' values, moving geometrically between them through the day. Both snapshots exist before the hour starts and never change, so every publisher derives the same level. A missing day falls back to the closest earlier one (up to a week; CRE checks one day back).
 - The model only adds intraday texture on top: a daily demand cycle peaking around 18:00 UTC and slow noise, about ±2–3% in all, still driven by the committed seeds. Publisher deviations shrink from ±0.8% to ±0.3%.
-- The first six hours of W42 ramp geometrically from the last simulated print to the real level, so no hour trips the 25% jump limit. W41 and earlier, and demo feeds, keep the simulated model unchanged.
-- The CRE publisher fetches the snapshots through CRE's HTTP capability with median consensus across nodes. The bots fetch them over HTTPS. The market maker values hours from W42 at the current real level instead of the trailing mean of simulated prints.
+- The first six real-price hours ramp geometrically from the last simulated print to the real level, so no hour trips the 25% jump limit. Earlier hours and demo feeds keep the simulated model unchanged.
+- The CRE publisher fetches the snapshots through CRE's HTTP capability with median consensus across nodes. The bots fetch them over HTTPS. The market maker values hours from the switch at the current real level instead of the trailing mean of simulated prints.
 - The landing page shows the last seven days of the real index, with the middle half of providers shaded, from a cached API route.
 
 **Why:**
 - A real price level makes the market, the quotes and the settlement mean something, while keeping the oracle design (three publishers, median, commit-reveal, auditability) intact.
 - Commercial indices (Ornn, Silicon Data) and marketplace APIs (Vast.ai) forbid display, republishing or settlement use without a licence. gpurentalprices.com publishes its data under CC BY 4.0, which allows any use with attribution.
 - Listed prices change rarely, so the earlier model's ±10–12% swings and shocks would have been unrealistic. Small, seed-driven texture keeps hours unpredictable without inventing large moves.
-- Switching at a week boundary means no settled or running week mixes the two models.
+- The switch is mid-week (2026-W41) rather than at the next week boundary because W41 had no outside traders yet, so real prices could start immediately. W41 settles on a mix of simulated and real hours; every later week is fully real.
 
 **Consequences:**
 - The index tracks listed on-demand prices, not negotiated or spot transaction prices, and its level lags one to two days. Weekly payouts are smaller than with the simulated model.
 - Publishers depend on an external data source. A brief outage costs nothing (the bots reuse the last level, and missing days fall back), but a long one would stop real-price submissions.
 - Auditing an hour needs the public snapshots for its days. The source keeps a rolling window in its repository and archives the full history (Zenodo).
-- This supersedes the "simulated index" part of 007 for the hourly H100 feed from W42.
+- This supersedes the "simulated index" part of 007 for the hourly H100 feed from the switch.
 

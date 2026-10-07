@@ -21,8 +21,8 @@ export const REFERENCE_SOURCE = {
 export const snapshotUrl = (date: string) =>
   `https://raw.githubusercontent.com/adriannutiu/gpu-rental-prices/main/data/snapshots/${date}.json`;
 
-/** First hour priced from the reference: Monday 2026-10-12 00:00 UTC, the start of 2026-W42. */
-export const ANCHOR_START = Date.UTC(2026, 9, 12) / 1000;
+/** First hour priced from the reference: Wednesday 2026-10-07 18:00 UTC. */
+export const ANCHOR_START = Date.UTC(2026, 9, 7, 18) / 1000;
 /** Epochs over which the hourly index moves from the last simulated print to the reference, so no hour jumps far. */
 export const ANCHOR_RAMP_EPOCHS = 6;
 /** Feeds priced from the reference (hourly feeds only; demo feeds stay simulated for their scenarios). */
