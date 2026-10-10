@@ -20,6 +20,7 @@ import {
   getNetwork,
   handlerInTee,
 } from "@chainlink/cre-sdk";
+import stagingConfig from "./config.staging.json";
 import { type Config, actionsForFeed, deliver, parseMaster } from "./publisher.ts";
 import { teeReferenceLevel } from "./reference-http.ts";
 
@@ -86,7 +87,16 @@ export const initWorkflow = (config: Config) => {
   ];
 };
 
+/**
+ * The enclave run can receive an empty config, so (as in Chainlink's confidential templates) the parser falls back to
+ * the config compiled into the workflow. The config holds only public values: addresses, feeds, schedule and gas.
+ */
+export const parseConfig = (raw: Uint8Array): Config => {
+  const text = new TextDecoder().decode(raw);
+  return (text.trim() === "" ? stagingConfig : JSON.parse(text)) as Config;
+};
+
 export async function main() {
-  const runner = await Runner.newRunner<Config>();
+  const runner = await Runner.newRunner<Config>({ configParser: parseConfig });
   await runner.run(initWorkflow);
 }
