@@ -8,3 +8,8 @@ production-settings:
   rpcs:
     - chain-name: monad-testnet
       url: ${CRE_MONAD_RPC_URL}
+
+confidential-settings:
+  rpcs:
+    - chain-name: monad-testnet
+      url: ${CRE_MONAD_RPC_URL}

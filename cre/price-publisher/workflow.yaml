@@ -16,3 +16,14 @@ production-settings:
     workflow-path: "./main.ts"
     config-path: "./config.production.json"
     secrets-path: "../secrets.yaml"
+
+# confidential-settings: the same publisher as a Confidential Workflow (handler in a TEE; CRE private beta).
+# Simulate: cre workflow simulate price-publisher --target confidential-settings --non-interactive --trigger-index 0
+confidential-settings:
+  user-workflow:
+    workflow-name: "rackrate-price-publisher-confidential"
+    deployment-registry: "private"
+  workflow-artifacts:
+    workflow-path: "./main-confidential.ts"
+    config-path: "./config.staging.json"
+    secrets-path: "../secrets.yaml"
