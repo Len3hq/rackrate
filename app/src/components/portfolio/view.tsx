@@ -1,6 +1,6 @@
 "use client";
 
-import { Drop, Wallet } from "@phosphor-icons/react";
+import { ArrowUpRight, Drop, Wallet } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Address } from "viem";
@@ -86,6 +86,14 @@ export function PortfolioView() {
           >
             <Drop size={16} /> {faucetIn > 0 ? `Faucet ready in ${countdown(faucetIn)}` : "Claim 10,000 rrUSD"}
           </Button>
+          <a
+            href="https://faucet.monad.xyz"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted underline-offset-2 hover:text-accent hover:underline"
+          >
+            Need MON for gas? Monad faucet <ArrowUpRight size={12} />
+          </a>
         </Tile>
         <Tile label="Positions value (est.)" value={h ? usd(total) : null} note="Marked to the best bid and ask, or to payouts once settled." />
         <Tile label="Open weeks" value={h ? String(rows.filter((r) => !r.m.settled).length) : null} note="Weeks where you hold LONG or SHORT." />
