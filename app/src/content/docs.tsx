@@ -226,7 +226,7 @@ SHORT pays (cap − A)   × 168`}</code>
         <p>Three allowlisted publishers submit a price every hour:</p>
         <ul>
           <li>
-            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow fetches the real price data over CRE&apos;s HTTP capability, computes the price and delivers a report to the <code>CreReceiver</code> contract. Until Chainlink grants deploy access, it runs in CRE simulation mode, with each report delivered onchain through Chainlink&apos;s test forwarder.
+            <strong>A, Chainlink CRE.</strong> A Chainlink Runtime Environment workflow fetches the real price data over CRE&apos;s HTTP capability, computes the price and delivers a report to the <code>CreReceiver</code> contract. It runs as a full CRE instance on the team&apos;s server (<code>cre workflow simulate --broadcast</code>), delivering each report onchain through Chainlink&apos;s test forwarder. A confidential variant runs the secret seed, the price fetch and the computation in a TEE enclave, while chain reads and writes stay on the Workflow DON.
           </li>
           <li>
             <strong>B and C, bots.</strong> Two independent processes with separate keys.
@@ -366,7 +366,7 @@ SHORT pays (cap − A)   × 168`}</code>
             <strong>Team-run publishers.</strong> All three publishers are operated by the team. In production the publishers would be GPU hosts signing their own rental rates.
           </li>
           <li>
-            <strong>CRE in simulation mode.</strong> The Chainlink workflow runs on the team&apos;s server until CRE deploy access is granted. Switching to Chainlink&apos;s network needs no contract redeploy.
+            <strong>CRE on the team&apos;s server.</strong> The Chainlink workflow runs through the CRE simulator, not on Chainlink&apos;s DON, so the confidential variant&apos;s enclave guarantees apply only once deployed. Switching to Chainlink&apos;s network needs no contract redeploy.
           </li>
           <li>
             <strong>Test liquidity.</strong> Quotes on the books come from a team-run market maker that only places resting orders. It is not organic volume.

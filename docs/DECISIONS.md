@@ -257,3 +257,18 @@ A log of the important design decisions behind Rackrate and why they were made. 
 - Auditing an hour needs the public snapshots for its days. The source keeps a rolling window in its repository and archives the full history (Zenodo).
 - This supersedes the "simulated index" part of 007 for the hourly H100 feed from the switch.
 
+
+### 017 — A confidential variant of the CRE publisher
+**Date:** 2026-10-10
+**Decision:**
+- `cre/price-publisher/main-confidential.ts` runs the same publisher as a Chainlink Confidential Workflow (`handlerInTee`). The master seed, the real-price fetch and the price computation run in the enclave. The oracle reads, report signing and the write to `CreReceiver` run on the Workflow DON through `usingTheDons()`.
+- A `preHook` closes the enclave to everything except the calls one run needs and the one secret, `PRICE_MASTER_SECRET`.
+- The logic shared with `main.ts` moved to `publisher.ts`, so both entry points produce identical actions. `main.ts` stays the live hourly publisher. The confidential variant runs through the simulator (`--target confidential-settings`) until it can be deployed.
+
+**Why:**
+- The master seed decides every future hour's noise. In the standard workflow every node operator can read it; in the enclave none can.
+- The revealed per-period seeds stay public, so every print can still be audited.
+
+**Consequences:**
+- The simulator does not run a real TEE, so the enclave guarantees hold only once deployed.
+- Inside the enclave the snapshot is fetched once, without consensus across nodes.

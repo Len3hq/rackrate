@@ -192,13 +192,22 @@ Publisher A of the oracle is a [Chainlink CRE](https://docs.chain.link/cre) work
 
 ```sh
 cd cre/price-publisher && bun install && bun test   # unit tests of the real-price fetch, with the SDK's HTTP mock
-cre/scripts/run.sh once      # one simulation with real onchain writes (cre workflow simulate --broadcast)
+cre/scripts/run.sh once      # one run with real onchain writes (cre workflow simulate --broadcast)
 cre/scripts/run.sh start     # hourly, in the background (also: status, logs, stop)
 ```
 
-**Status:**
-- The workflow runs in **simulation mode** (`--broadcast`, through Chainlink's MockKeystoneForwarder) while CRE deploy access is pending.
-- Moving it to Chainlink's network is a deploy plus `CreReceiver.setForwarder(<KeystoneForwarder>)`. No contract redeploy is needed.
+**Confidential variant** (`main-confidential.ts`, [Confidential Workflows](https://docs.chain.link/cre), private beta). The same publisher as `main.ts`, with the same code shared through `publisher.ts`, but the handler runs in a TEE enclave (`handlerInTee`):
+- **In the enclave:** the master seed (released by the Vault DON only to an attested enclave), the real-price fetch and the price computation, including each period's seed. Node operators never see the master seed.
+- **On the Workflow DON** (`usingTheDons()`): the oracle reads, report signing and the write to `CreReceiver`.
+- **Restrictions** (`preHook`): only the HTTP fetches, Multicall3 reads, one report and one write the run needs, and only the `PRICE_MASTER_SECRET` secret.
+
+```sh
+cd cre && cre workflow simulate price-publisher --target confidential-settings --non-interactive --trigger-index 0
+```
+
+**How it runs:**
+- Hourly as `cre workflow simulate --broadcast`, a full CRE instance on the team's server, delivering through Chainlink's MockKeystoneForwarder.
+- Moving it to Chainlink's DON is a deploy plus `CreReceiver.setForwarder(<KeystoneForwarder>)`. No contract redeploy is needed.
 
 ## Hosting
 
@@ -210,7 +219,7 @@ cre/scripts/run.sh start     # hourly, in the background (also: status, logs, st
 | Market maker | Railway, volume at `/data` | `bots/Dockerfile` | `node src/mm.ts --interval 60` |
 | Web app | Railway (root directory `app`) or Vercel | Next.js | `npm start` |
 | Indexer | Envio Cloud (root directory `indexer`) | `config.yaml` | managed |
-| CRE publisher | Railway, simulation mode until CRE deploy access | `cre/Dockerfile` | image default (`scripts/run.sh loop`, hourly) |
+| CRE publisher | Railway (`cre workflow simulate --broadcast`) | `cre/Dockerfile` | image default (`scripts/run.sh loop`, hourly) |
 
 Notes:
 - The bots image ships the ABIs from `app/src/lib/generated.ts`, so it needs no Solidity toolchain.
@@ -245,7 +254,7 @@ Oracle feeds: `H100`, `H200`, `B200` (hourly) and `H100_DEMO`, `H200_DEMO`, `B20
 
 - Since 2026-10-07 18:00 UTC the index **level is real** (GPU clouds' published on-demand H100 prices, which change daily at most); the movement **within a day is modelled** (about ±2–3%). These are listed prices, not negotiated contract rates. Earlier hours and demo weeks use a simulated index; 2026-W41 settles on a mix of both.
 - All oracle publishers (two bots and a Chainlink CRE workflow) are operated by the team. On mainnet, the publishers would be GPU hosts signing their own rental rates.
-- The CRE workflow currently runs in Chainlink's simulation mode on the team's server, pending CRE deploy access.
+- The CRE workflow runs as `cre workflow simulate --broadcast` on the team's server, not on Chainlink's DON. The simulator does not run a real TEE, so the confidential variant's enclave guarantees apply only once it is deployed.
 - Liquidity on the order books comes from a team-run test market maker. **It is not organic volume.**
 
 ## Attribution
