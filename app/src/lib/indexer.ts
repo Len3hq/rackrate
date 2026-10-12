@@ -145,3 +145,20 @@ export function usePublisherStats(feedId: string) {
       ).PublisherStats,
   });
 }
+
+/** Finalized hours and each publisher's submissions from `fromEpoch` on, for a recent-window uptime. */
+export function useRecentSubmissions(feedId: string, fromEpoch: number | undefined) {
+  return useQuery({
+    queryKey: ["indexer", "recent-submissions", feedId, fromEpoch],
+    enabled: !!INDEXER_URL && fromEpoch !== undefined,
+    refetchInterval: 60_000,
+    queryFn: () =>
+      gql<{ Submission: { epoch: string; publisher: string }[]; OraclePrint: { epoch: string }[] }>(
+        `query Recent($feed: String!, $from: numeric!) {
+          Submission(where: { feedId: { _eq: $feed }, epoch: { _gte: $from } }, limit: 2000) { epoch publisher }
+          OraclePrint(where: { feedId: { _eq: $feed }, epoch: { _gte: $from } }, limit: 500) { epoch }
+        }`,
+        { feed: feedId.toLowerCase(), from: String(fromEpoch) },
+      ),
+  });
+}

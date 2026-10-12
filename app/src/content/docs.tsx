@@ -232,6 +232,9 @@ SHORT pays (cap − A)   × 168`}</code>
             <strong>B and C, bots.</strong> Two independent processes with separate keys.
           </li>
         </ul>
+        <p>
+          The oracle page shows a <strong>scorecard</strong> for each publisher: the share of hours it priced (last 7 days and all time), how far its prices were from each hour&apos;s final median on average and at worst, its seed commits and reveals, and when it last submitted. The indexer scores every publisher as each hour finalizes.
+        </p>
         <h2>Finalizing an hour</h2>
         <ul>
           <li>The price for an hour is the <strong>median</strong> of at least two submissions.</li>
@@ -344,7 +347,7 @@ SHORT pays (cap − A)   × 168`}</code>
         </p>
         <h2>History and fills</h2>
         <p>
-          Portfolio history and recent trades come from an <a href="https://envio.dev" target="_blank" rel="noreferrer">Envio HyperIndex</a> indexer of these contracts and the Kuru books. Balances, positions and quotes are always read from the chain itself, so the app keeps working if the indexer is unavailable.
+          Portfolio history, recent trades and the publisher scorecard come from an <a href="https://envio.dev" target="_blank" rel="noreferrer">Envio HyperIndex</a> indexer of these contracts and the Kuru books. Balances, positions and quotes are always read from the chain itself, so the app keeps working if the indexer is unavailable.
         </p>
       </>
     ),

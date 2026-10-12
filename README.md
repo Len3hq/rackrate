@@ -125,14 +125,16 @@ Each publisher commits a hash of its per-period seed onchain **before** the seed
 - every series, with volume, last price, open pairs and settlement;
 - every fill on the weekly Kuru books, whose books are discovered automatically from `MarketCreated`;
 - a per-wallet history of hedges, buys, sells, redemptions and claims;
-- every finalized oracle hour;
+- every finalized oracle hour, and every publisher's price for it;
+- a **publisher scorecard**, derived as each hour finalizes: every allowlisted publisher is scored on whether it submitted and how far its price was from the final median, plus its seed commits and reveals;
 - running protocol totals (volume, fills, GPU-weeks hedged, distinct traders).
 
 The app uses it, when `NEXT_PUBLIC_INDEXER_URL` is set, for:
 - Portfolio history;
 - recent trades on each book;
 - the landing page's volume and hedge totals;
-- the oracle chart's 3-day and 7-day history (one query instead of many chain reads).
+- the oracle chart's 3-day and 7-day history (one query instead of many chain reads);
+- the oracle page's publisher scorecard (hours priced over 7 days and all time, average and worst distance from the final price, seeds, last submission).
 
 Without it, or while it is unreachable, the same views fall back to chain reads. Locally, put `NEXT_PUBLIC_INDEXER_URL=http://localhost:8082/v1/graphql` in `app/.env.local`.
 

@@ -4,7 +4,7 @@ import { CheckCircle, Circle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { EPOCH_STATUS, FEEDS, PUBLISHERS, useOracle } from "@/lib/data";
-import { INDEXER_URL, type PublisherStatsRow, useOraclePrints, usePublisherStats } from "@/lib/indexer";
+import { INDEXER_URL, type PublisherStatsRow, useOraclePrints, usePublisherStats, useRecentSubmissions } from "@/lib/indexer";
 import { deployment } from "@/lib/generated";
 import { shortAddr, usd, utcHour } from "@/lib/format";
 import { explorer } from "@/lib/wagmi";
@@ -76,7 +76,7 @@ export function OracleView() {
         {oracle.isError && <p className="text-sm text-muted">Could not reach Monad testnet. Retrying automatically.</p>}
       </section>
 
-      <Scorecard />
+      <Scorecard nextEpoch={d?.nextEpoch} />
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_360px]">
         <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
@@ -138,10 +138,25 @@ function ago(ts: number): string {
  * Each publisher's track record, derived by the indexer (Envio): as every hour finalizes, each allowlisted publisher
  * is scored on whether it submitted and how far its price was from the final median.
  */
-function Scorecard() {
+/** Window for the recent uptime figure, in hourly epochs. */
+const RECENT_HOURS = 168;
+
+function Scorecard({ nextEpoch }: { nextEpoch?: number }) {
   const stats = usePublisherStats(FEEDS.H100);
   const byAddress = new Map((stats.data ?? []).map((r) => [r.publisher, r]));
   const off = !INDEXER_URL || stats.isError;
+
+  // Last 7 days: hours the indexer has seen finalize, and which of them each publisher priced.
+  const recent = useRecentSubmissions(FEEDS.H100, nextEpoch === undefined ? undefined : Math.max(0, nextEpoch - RECENT_HOURS));
+  const recentFor = (address: string): Recent | undefined => {
+    if (!recent.data) return undefined;
+    const finalized = new Set(recent.data.OraclePrint.map((p) => p.epoch));
+    const a = address.toLowerCase();
+    const priced = recent.data.Submission.filter((x) => x.publisher === a && finalized.has(x.epoch)).length;
+    // A publisher allowlisted part-way through the window is only counted for the hours it could have priced.
+    const eligible = Math.min(finalized.size, byAddress.get(a)?.hoursEligible ?? finalized.size);
+    return { priced, eligible };
+  };
 
   return (
     <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
@@ -153,7 +168,7 @@ function Scorecard() {
       </div>
       <div className="mt-4 hidden grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr] gap-4 border-y border-line px-5 py-3 text-xs text-muted md:grid">
         <span>Publisher</span>
-        <span className="text-right">Hours priced</span>
+        <span className="text-right">Hours priced, 7d</span>
         <span className="text-right" title="Average distance of its price from the hour's final median">Avg. from final</span>
         <span className="text-right">Worst</span>
         <span className="text-right" title="Seeds are committed before their period and revealed after it, so every price can be re-derived">Seeds committed / revealed</span>
@@ -161,18 +176,37 @@ function Scorecard() {
       </div>
       <ul className="mt-3 md:mt-0">
         {PUBLISHERS.map((p) => (
-          <ScoreRow key={p.address} name={p.name} kind={p.kind} address={p.address} row={byAddress.get(p.address.toLowerCase())} loading={!off && stats.isPending} />
+          <ScoreRow
+            key={p.address}
+            name={p.name}
+            kind={p.kind}
+            address={p.address}
+            row={byAddress.get(p.address.toLowerCase())}
+            recent={recentFor(p.address)}
+            loading={!off && (stats.isPending || recent.isPending)}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-function ScoreRow({ name, kind, address, row, loading }: { name: string; kind: string; address: string; row?: PublisherStatsRow; loading: boolean }) {
+interface Recent {
+  priced: number;
+  eligible: number;
+}
+
+function ScoreRow(props: { name: string; kind: string; address: string; row?: PublisherStatsRow; recent?: Recent; loading: boolean }) {
+  const { name, kind, address, row, recent, loading } = props;
   const uptime = row && row.hoursEligible > 0 ? (row.hoursSubmitted / row.hoursEligible) * 100 : null;
+  const recentUptime = recent && recent.eligible > 0 ? (recent.priced / recent.eligible) * 100 : null;
   const avg = row && row.hoursScored > 0 ? Number(row.deviationPpmSum) / row.hoursScored / 1e4 : null;
   const cells: { label: string; value: string | null; note?: string }[] = [
-    { label: "Hours priced", value: uptime === null ? null : pct(uptime), note: row ? `${row.hoursSubmitted} of ${row.hoursEligible}` : undefined },
+    {
+      label: "Hours priced, 7d",
+      value: recentUptime === null ? null : pct(recentUptime),
+      note: uptime === null ? undefined : `all time ${pct(uptime)} (${row!.hoursSubmitted} of ${row!.hoursEligible})`,
+    },
     { label: "Avg. from final", value: avg === null ? null : pct(avg, 2) },
     { label: "Worst", value: row && row.hoursScored > 0 ? pct(row.maxDeviationPpm / 1e4, 2) : null },
     { label: "Seeds committed / revealed", value: row ? `${row.seedsCommitted} / ${row.seedsRevealed}` : null },
