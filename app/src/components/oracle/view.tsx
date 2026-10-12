@@ -4,7 +4,7 @@ import { CheckCircle, Circle } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { EPOCH_STATUS, FEEDS, PUBLISHERS, useOracle } from "@/lib/data";
-import { INDEXER_URL, useOraclePrints } from "@/lib/indexer";
+import { INDEXER_URL, type PublisherStatsRow, useOraclePrints, usePublisherStats } from "@/lib/indexer";
 import { deployment } from "@/lib/generated";
 import { shortAddr, usd, utcHour } from "@/lib/format";
 import { explorer } from "@/lib/wagmi";
@@ -76,6 +76,8 @@ export function OracleView() {
         {oracle.isError && <p className="text-sm text-muted">Could not reach Monad testnet. Retrying automatically.</p>}
       </section>
 
+      <Scorecard />
+
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_360px]">
         <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
           <div className="grid grid-cols-[1.4fr_1fr_1fr_auto] gap-4 border-b border-line px-5 py-3 text-xs text-muted">
@@ -100,21 +102,6 @@ export function OracleView() {
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-            <h2 className="font-medium">Publishers</h2>
-            <ul className="mt-3 space-y-3 text-sm">
-              {PUBLISHERS.map((p) => (
-                <li key={p.address} className="flex items-center justify-between gap-3">
-                  <span>
-                    <span className="font-medium">{p.name === "Chainlink CRE" ? "A " : `${p.name.slice(-1)} `}</span>
-                    {p.name}
-                    <span className="block text-xs text-muted">{p.kind}</span>
-                  </span>
-                  <a href={`${explorer}/address/${p.address}`} target="_blank" rel="noreferrer" className="font-mono text-xs text-accent hover:underline">{shortAddr(p.address)}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
           <div className="rounded-2xl border border-line bg-surface p-5 text-sm shadow-card">
             <h2 className="font-medium">Feed rules</h2>
             {d ? (
@@ -132,6 +119,89 @@ export function OracleView() {
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Short publisher letter, as in the hourly table's columns. */
+const letter = (name: string) => (name === "Chainlink CRE" ? "A" : name.slice(-1));
+const pct = (v: number, digits = 1) => `${v.toFixed(digits)}%`;
+
+function ago(ts: number): string {
+  const s = Math.max(0, Math.floor(Date.now() / 1000) - ts);
+  if (s < 90) return "just now";
+  if (s < 5400) return `${Math.round(s / 60)} min ago`;
+  if (s < 129_600) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86_400)} d ago`;
+}
+
+/**
+ * Each publisher's track record, derived by the indexer (Envio): as every hour finalizes, each allowlisted publisher
+ * is scored on whether it submitted and how far its price was from the final median.
+ */
+function Scorecard() {
+  const stats = usePublisherStats(FEEDS.H100);
+  const byAddress = new Map((stats.data ?? []).map((r) => [r.publisher, r]));
+  const off = !INDEXER_URL || stats.isError;
+
+  return (
+    <section className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-5">
+        <h2 className="font-medium">Publisher scorecard</h2>
+        <p className="text-xs text-muted">
+          {off ? "Track records need the indexer, which is unavailable right now." : "Every finalized hour, scored against the final price. Indexed by Envio."}
+        </p>
+      </div>
+      <div className="mt-4 hidden grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr] gap-4 border-y border-line px-5 py-3 text-xs text-muted md:grid">
+        <span>Publisher</span>
+        <span className="text-right">Hours priced</span>
+        <span className="text-right" title="Average distance of its price from the hour's final median">Avg. from final</span>
+        <span className="text-right">Worst</span>
+        <span className="text-right" title="Seeds are committed before their period and revealed after it, so every price can be re-derived">Seeds committed / revealed</span>
+        <span className="text-right">Last price</span>
+      </div>
+      <ul className="mt-3 md:mt-0">
+        {PUBLISHERS.map((p) => (
+          <ScoreRow key={p.address} name={p.name} kind={p.kind} address={p.address} row={byAddress.get(p.address.toLowerCase())} loading={!off && stats.isPending} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ScoreRow({ name, kind, address, row, loading }: { name: string; kind: string; address: string; row?: PublisherStatsRow; loading: boolean }) {
+  const uptime = row && row.hoursEligible > 0 ? (row.hoursSubmitted / row.hoursEligible) * 100 : null;
+  const avg = row && row.hoursScored > 0 ? Number(row.deviationPpmSum) / row.hoursScored / 1e4 : null;
+  const cells: { label: string; value: string | null; note?: string }[] = [
+    { label: "Hours priced", value: uptime === null ? null : pct(uptime), note: row ? `${row.hoursSubmitted} of ${row.hoursEligible}` : undefined },
+    { label: "Avg. from final", value: avg === null ? null : pct(avg, 2) },
+    { label: "Worst", value: row && row.hoursScored > 0 ? pct(row.maxDeviationPpm / 1e4, 2) : null },
+    { label: "Seeds committed / revealed", value: row ? `${row.seedsCommitted} / ${row.seedsRevealed}` : null },
+    { label: "Last price", value: row?.lastSubmittedAt ? ago(row.lastSubmittedAt) : null },
+  ];
+  return (
+    <li className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-line px-5 py-4 text-sm last:border-b-0 md:grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr] md:items-center md:py-3">
+      <span className="col-span-2 md:col-span-1">
+        <span className="font-medium">{letter(name)} </span>
+        {name}
+        <span className="block text-xs text-muted">
+          {kind} ·{" "}
+          <a href={`${explorer}/address/${address}`} target="_blank" rel="noreferrer" className="font-mono text-accent hover:underline">{shortAddr(address)}</a>
+        </span>
+      </span>
+      {cells.map((c) => (
+        <span key={c.label} className="md:text-right">
+          <span className="block text-xs text-muted md:hidden">{c.label}</span>
+          {loading ? (
+            <Skeleton className="h-5 w-16 md:ml-auto" />
+          ) : (
+            <>
+              <span className="font-mono tnum">{c.value ?? "-"}</span>
+              {c.note && <span className="block text-xs text-muted">{c.note}</span>}
+            </>
+          )}
+        </span>
+      ))}
+    </li>
   );
 }
 

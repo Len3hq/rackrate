@@ -111,3 +111,37 @@ export function useOraclePrints(feedId: string, fromEpoch: number | undefined, e
       ).OraclePrint,
   });
 }
+
+export interface PublisherStatsRow {
+  publisher: string; // lowercase
+  allowed: boolean;
+  hoursEligible: number; // finalized hours while allowlisted
+  hoursSubmitted: number;
+  hoursScored: number; // printed hours it submitted for
+  deviationPpmSum: string; // BigInt: sum of |price - final| / final, parts per million
+  maxDeviationPpm: number;
+  seedsCommitted: number;
+  seedsRevealed: number;
+  lastSubmittedAt: number | null;
+}
+
+/** Each publisher's running record on a feed, derived by the indexer as every hour finalizes. */
+export function usePublisherStats(feedId: string) {
+  return useQuery({
+    queryKey: ["indexer", "publishers", feedId],
+    enabled: !!INDEXER_URL,
+    refetchInterval: 60_000,
+    queryFn: async () =>
+      (
+        await gql<{ PublisherStats: PublisherStatsRow[] }>(
+          `query Publishers($feed: String!) {
+            PublisherStats(where: { feedId: { _eq: $feed } }) {
+              publisher allowed hoursEligible hoursSubmitted hoursScored deviationPpmSum maxDeviationPpm
+              seedsCommitted seedsRevealed lastSubmittedAt
+            }
+          }`,
+          { feed: feedId.toLowerCase() },
+        )
+      ).PublisherStats,
+  });
+}
