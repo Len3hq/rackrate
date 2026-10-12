@@ -88,10 +88,16 @@ export function revertName(err: unknown): string | undefined {
   return revert instanceof ContractFunctionRevertedError ? (revert.data?.errorName ?? revert.reason) : undefined;
 }
 
+/** One-line error for logs. RPC errors keep the node's own message (e.g. "insufficient funds"), which viem's generic
+ * short message ("Missing or invalid parameters.") hides. */
 export function errorMessage(err: unknown): string {
   const name = revertName(err);
   if (name) return `reverted: ${name}`;
-  if (err instanceof BaseError) return err.shortMessage;
+  if (err instanceof BaseError) {
+    const short = err.shortMessage.split("\n")[0];
+    const details = err.details?.split("\n")[0].trim();
+    return details && !short.includes(details) ? `${short} (${details})` : short;
+  }
   return (err as Error).message.split("\n")[0];
 }
 
