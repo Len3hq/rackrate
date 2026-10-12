@@ -1,6 +1,6 @@
 # Rackrate bots (publishers, keeper, market maker). Build from the repository root:
 #   docker build -f bots/Dockerfile -t rackrate-bots .
-# Each Railway service runs this image with its own start command (see README, "Hosting").
+# On Railway one service runs every bot with `node src/all.ts` (see README, "Hosting").
 FROM node:26-slim
 WORKDIR /repo
 COPY bots/package.json bots/

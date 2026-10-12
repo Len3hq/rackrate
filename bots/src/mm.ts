@@ -29,6 +29,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { parentPort } from "node:worker_threads";
 import { type Address, type Hex, decodeEventLog, keccak256, maxUint256, toBytes } from "viem";
 import { type Ctx, chainTime, ctxFromKeyEnv, errorMessage, send } from "./lib/chain.ts";
 import { ROOT, loadAbi, loadDeployment, loadEnv, log } from "./lib/config.ts";
@@ -454,12 +455,14 @@ if (values.recover) {
   if (Object.keys(loadState()).length === 0) await recover();
   let stopping = false;
   let wake: (() => void) | undefined;
-  for (const sig of ["SIGTERM", "SIGINT"] as const) {
-    process.on(sig, () => {
-      stopping = true;
-      wake?.();
-    });
-  }
+  const stop = () => {
+    stopping = true;
+    wake?.();
+  };
+  for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, stop);
+  // Under the bots supervisor (src/all.ts) signals reach only the main thread, which forwards them as "stop".
+  parentPort?.on("message", (msg) => msg === "stop" && stop());
+  parentPort?.unref();
   while (!stopping) {
     try {
       await tick(DEFAULT_LEVELS);
@@ -468,8 +471,11 @@ if (values.recover) {
     }
     if (stopping) break;
     await new Promise<void>((r) => {
-      wake = r;
-      setTimeout(r, Number(values.interval) * 1000);
+      const timer = setTimeout(r, Number(values.interval) * 1000);
+      wake = () => {
+        clearTimeout(timer);
+        r();
+      };
     });
   }
   log(scope, "stopped cleanly");

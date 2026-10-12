@@ -1,4 +1,5 @@
-# Rackrate CRE publisher (oracle publisher A): runs the workflow simulation with real onchain writes once an hour.
+# Rackrate CRE publisher (oracle publisher A): runs the workflow simulation with real onchain writes once and exits.
+# Hosted as a Railway cron service (schedule `2 * * * *`), so the container only exists while a run is in progress.
 # Build from the repository root:
 #   docker build -f cre/Dockerfile -t rackrate-cre .
 # Variables (see README, "Hosting"): CRE_MONAD_RPC_URL, CRE_PRICE_MASTER_SECRET, CRE_ETH_PRIVATE_KEY, and either
@@ -23,4 +24,4 @@ COPY bots/src/lib/priceModel.ts bots/src/lib/reference.ts bots/src/lib/
 RUN ln -s /repo/cre/price-publisher/node_modules bots/node_modules
 
 WORKDIR /repo/cre
-CMD ["bash", "scripts/run.sh", "loop"]
+CMD ["bash", "scripts/run.sh", "once"]

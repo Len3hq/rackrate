@@ -215,17 +215,15 @@ cd cre && cre workflow simulate price-publisher --target confidential-settings -
 
 | Component | Where | Build | Start |
 |---|---|---|---|
-| Publisher B | Railway | `bots/Dockerfile` | `node src/publisher.ts --key PUBLISHER_B_PRIVATE_KEY --feeds H100 --interval 60` |
-| Publisher C | Railway | `bots/Dockerfile` | `node src/publisher.ts --key PUBLISHER_C_PRIVATE_KEY --feeds H100 --interval 60 --skip-finalize --delay 20` |
-| Keeper | Railway | `bots/Dockerfile` | `node src/keeper.ts --feeds H100 --weeks 4 --interval 300` |
-| Market maker | Railway, volume at `/data` | `bots/Dockerfile` | `node src/mm.ts --interval 60` |
+| Bots (publishers B and C, keeper, market maker) | Railway, one service, volume at `/data` | `bots/Dockerfile` | `node src/all.ts` |
 | Web app | Railway (root directory `app`) or Vercel | Next.js | `npm start` |
 | Indexer | Envio Cloud (root directory `indexer`) | `config.yaml` | managed |
-| CRE publisher | Railway (`cre workflow simulate --broadcast`) | `cre/Dockerfile` | image default (`scripts/run.sh loop`, hourly) |
+| CRE publisher | Railway cron service, schedule `2 * * * *` (`cre workflow simulate --broadcast`) | `cre/Dockerfile` | image default (`scripts/run.sh once`) |
 
 Notes:
+- `src/all.ts` runs publisher B (`--interval 60`), publisher C (`--interval 60 --skip-finalize --delay 20`), the keeper (`--weeks 4 --interval 300`) and the market maker (`--interval 60`) as worker threads of one process, each with a capped heap; a bot that crashes is restarted on its own. Any of them still runs standalone (`node src/publisher.ts ...`).
 - The bots image ships the ABIs from `app/src/lib/generated.ts`, so it needs no Solidity toolchain.
-- **Secrets** are service variables, never in the repo: `BOT_RPC_URL`, `PRICE_MASTER_SECRET` and each service's key (`PUBLISHER_B_PRIVATE_KEY`, `PUBLISHER_C_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY` for the keeper, `MM_PRIVATE_KEY`). The market maker also gets `MM_STATE_FILE=/data/mm-state.json`.
+- **Secrets** are service variables, never in the repo: `BOT_RPC_URL`, `PRICE_MASTER_SECRET` and each service's key (`PUBLISHER_B_PRIVATE_KEY`, `PUBLISHER_C_PRIVATE_KEY`, `DEPLOYER_PRIVATE_KEY` for the keeper, `MM_PRIVATE_KEY`). The bots service also gets `MM_STATE_FILE=/data/mm-state.json`.
 - The **CRE publisher** takes `CRE_MONAD_RPC_URL`, `CRE_PRICE_MASTER_SECRET` (the same value as `PRICE_MASTER_SECRET`) and `CRE_ETH_PRIVATE_KEY` (the simulator key that pays for the forwarder transaction). It signs in with `CRE_API_KEY` once CRE deploy access is granted; until then with `CRE_CREDENTIALS` (`base64 -i ~/.cre/cre.yaml` after `cre login`) and a volume at `/root/.cre`, where the CLI keeps the login it renews.
 - **One process per key.** Stop a bot on any other host before starting it on Railway, or the two will collide on nonces. A market maker that starts without a state file adopts its resting orders from the chain first.
 
