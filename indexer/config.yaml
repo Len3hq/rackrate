@@ -37,6 +37,10 @@ contracts:
     handler: src/EventHandlers.ts
     events:
       - event: "EpochFinalized(bytes32 indexed feedId, uint64 indexed epoch, uint8 status, uint64 price, uint8 submissions)"
+      - event: "PublisherSet(bytes32 indexed feedId, address indexed publisher, bool allowed)"
+      - event: "PriceSubmitted(bytes32 indexed feedId, uint64 indexed epoch, address indexed publisher, uint64 price)"
+      - event: "SeedCommitted(bytes32 indexed feedId, uint64 indexed periodId, address indexed publisher, bytes32 hash, uint64 revealAfter)"
+      - event: "SeedRevealed(bytes32 indexed feedId, uint64 indexed periodId, address indexed publisher, bytes32 seed)"
 chains:
   - id: 10143 # Monad testnet
     start_block: 67475432 # RackOracle / SeriesFactory deployment

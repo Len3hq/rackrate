@@ -70,6 +70,41 @@ type OraclePrint {
   timestamp: Int!
 }
 
+# One publisher's price for one oracle hour. id = feedId_epoch_publisher.
+type Submission {
+  id: ID!
+  feedId: String! @index
+  epoch: BigInt! @index
+  publisher: String! @index
+  price: BigInt! # micro-dollars per GPU-hour
+  deviationPpm: Int # distance from the hour's final price, parts per million; set once the hour is printed
+  timestamp: Int!
+}
+
+# Allowlisted publishers of a feed, kept from PublisherSet so each finalized hour knows who should have priced it.
+# id = feedId.
+type OracleFeed {
+  id: ID!
+  publishers: [String!]!
+}
+
+# One publisher's running record on one feed, derived from its submissions as each hour finalizes.
+# id = feedId_publisher.
+type PublisherStats {
+  id: ID!
+  feedId: String! @index
+  publisher: String!
+  allowed: Boolean!
+  hoursEligible: Int! # finalized hours while allowlisted
+  hoursSubmitted: Int! # of those, hours it submitted a price for
+  hoursScored: Int! # printed hours it submitted for (the deviation average's denominator)
+  deviationPpmSum: BigInt! # sum of |price - final| / final over scored hours, parts per million
+  maxDeviationPpm: Int!
+  seedsCommitted: Int!
+  seedsRevealed: Int!
+  lastSubmittedAt: Int # timestamp of its latest submission
+}
+
 # Running protocol totals (single row, id "rackrate"), for the landing page.
 type Protocol {
   id: ID!

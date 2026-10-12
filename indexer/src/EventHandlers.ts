@@ -1,6 +1,7 @@
 /**
  * Rackrate event handlers. Builds markets with live trading statistics, every fill on the weekly Kuru books,
- * a per-wallet activity history, and the finalized oracle hours. Addresses are lowercase (config.yaml).
+ * a per-wallet activity history, the finalized oracle hours, and a running scorecard for each oracle publisher.
+ * Addresses are lowercase (config.yaml).
  */
 import { type EvmOnEventContext, indexer } from "envio";
 
@@ -256,15 +257,96 @@ indexer.onEvent({ contract: "KuruBook", event: "Trade", fields }, async ({ event
 // Oracle
 // ---------------------------------------------------------------------------------------------------------------
 
+/** EpochStatus.Printed in RackOracle. Other finalized hours (missing, rejected) have no price to score against. */
+const PRINTED = 1;
+
+const statsId = (feedId: string, publisher: string) => `${feedId}_${publisher}`;
+const submissionId = (feedId: string, epoch: bigint, publisher: string) => `${feedId}_${epoch}_${publisher}`;
+
+/** A publisher's record on a feed, created empty the first time it is seen. */
+async function publisherStats(context: Ctx, feedId: string, publisher: string) {
+  return (
+    (await context.PublisherStats.get(statsId(feedId, publisher))) ?? {
+      id: statsId(feedId, publisher),
+      feedId,
+      publisher,
+      allowed: false,
+      hoursEligible: 0,
+      hoursSubmitted: 0,
+      hoursScored: 0,
+      deviationPpmSum: 0n,
+      maxDeviationPpm: 0,
+      seedsCommitted: 0,
+      seedsRevealed: 0,
+      lastSubmittedAt: undefined,
+    }
+  );
+}
+
+/** |price - final| / final in parts per million. */
+const deviationPpm = (price: bigint, final: bigint) => Number(((price > final ? price - final : final - price) * 1_000_000n) / final);
+
+indexer.onEvent({ contract: "RackOracle", event: "PublisherSet" }, async ({ event, context }) => {
+  const { feedId, publisher, allowed } = event.params;
+  const feed = (await context.OracleFeed.get(feedId)) ?? { id: feedId, publishers: [] };
+  const others = feed.publishers.filter((a) => a !== publisher);
+  context.OracleFeed.set({ ...feed, publishers: allowed ? [...others, publisher] : others });
+  context.PublisherStats.set({ ...(await publisherStats(context, feedId, publisher)), allowed });
+});
+
+indexer.onEvent({ contract: "RackOracle", event: "PriceSubmitted", fields }, async ({ event, context }) => {
+  const { feedId, epoch, publisher, price } = event.params;
+  context.Submission.set({
+    id: submissionId(feedId, epoch, publisher),
+    feedId,
+    epoch,
+    publisher,
+    price,
+    deviationPpm: undefined,
+    timestamp: event.block.timestamp,
+  });
+  const stats = await publisherStats(context, feedId, publisher);
+  context.PublisherStats.set({ ...stats, lastSubmittedAt: event.block.timestamp });
+});
+
+indexer.onEvent({ contract: "RackOracle", event: "SeedCommitted" }, async ({ event, context }) => {
+  const stats = await publisherStats(context, event.params.feedId, event.params.publisher);
+  context.PublisherStats.set({ ...stats, seedsCommitted: stats.seedsCommitted + 1 });
+});
+
+indexer.onEvent({ contract: "RackOracle", event: "SeedRevealed" }, async ({ event, context }) => {
+  const stats = await publisherStats(context, event.params.feedId, event.params.publisher);
+  context.PublisherStats.set({ ...stats, seedsRevealed: stats.seedsRevealed + 1 });
+});
+
 indexer.onEvent({ contract: "RackOracle", event: "EpochFinalized", fields }, async ({ event, context }) => {
   const p = event.params;
+  const status = Number(p.status);
   context.OraclePrint.set({
     id: `${p.feedId}_${p.epoch}`,
     feedId: p.feedId,
     epoch: p.epoch,
-    status: Number(p.status),
+    status,
     price: p.price,
     submissions: Number(p.submissions),
     timestamp: event.block.timestamp,
   });
+
+  // Score every publisher that was allowlisted for this hour: did it submit, and how far was it from the final price?
+  const feed = await context.OracleFeed.get(p.feedId);
+  for (const publisher of feed?.publishers ?? []) {
+    const stats = await publisherStats(context, p.feedId, publisher);
+    const sub = await context.Submission.get(submissionId(p.feedId, p.epoch, publisher));
+    const scored = sub !== undefined && status === PRINTED && p.price > 0n;
+    const dev = scored ? deviationPpm(sub.price, p.price) : 0;
+    if (scored) context.Submission.set({ ...sub, deviationPpm: dev });
+    context.PublisherStats.set({
+      ...stats,
+      hoursEligible: stats.hoursEligible + 1,
+      hoursSubmitted: stats.hoursSubmitted + (sub ? 1 : 0),
+      hoursScored: stats.hoursScored + (scored ? 1 : 0),
+      deviationPpmSum: stats.deviationPpmSum + BigInt(dev),
+      maxDeviationPpm: Math.max(stats.maxDeviationPpm, dev),
+    });
+  }
 });

@@ -134,4 +134,71 @@ describe("Rackrate indexer", () => {
     t.expect(kinds).toEqual(["MINT", "REDEEM", "CLAIM"]);
     t.expect(await indexer.OraclePrint.getOrThrow(`${FEED}_377`)).toMatchObject({ status: 1, price: 3_400_000n, submissions: 3 });
   });
+
+  it("scores each oracle publisher against the final price of every hour it was allowlisted for", async (t) => {
+    const CRE: Hex = "0xcbc04ca6f77f5ad7d583db4dfc34c65a49dd4310";
+    const PUB_B: Hex = "0x5f6fd1cb79a710162610d90185cfec37d1b9d3b2";
+    const PUB_C: Hex = "0xc29da9fee200628a45bfe31028d7752f3bbcb774";
+    const OLD: Hex = "0x0000000000000000000000000000000000000bad";
+    const ev = (n: number, event: string, params: Record<string, unknown>): Sim =>
+      ({ contract: "RackOracle", event, block: block(n), transaction: tx(n), params }) as Sim;
+    const allow = (n: number, publisher: Hex, allowed = true) => ev(n, "PublisherSet", { feedId: FEED, publisher, allowed });
+    const submit = (n: number, epoch: bigint, publisher: Hex, price: bigint) => ev(n, "PriceSubmitted", { feedId: FEED, epoch, publisher, price });
+    const finalize = (n: number, epoch: bigint, status: bigint, price: bigint, submissions: bigint) =>
+      ev(n, "EpochFinalized", { feedId: FEED, epoch, status, price, submissions });
+
+    const indexer = createTestIndexer();
+    await indexer.process({
+      chains: {
+        10143: {
+          simulate: [
+            allow(1, OLD),
+            allow(2, CRE),
+            allow(3, PUB_B),
+            allow(4, PUB_C),
+            allow(5, OLD, false), // removed before any hour finalizes: never scored
+            // Hour 10: all three submit; the median is $3.50.
+            submit(10, 10n, CRE, 3_507_000n), // +0.2%
+            submit(11, 10n, PUB_B, 3_500_000n),
+            submit(12, 10n, PUB_C, 3_486_000n), // -0.4%
+            finalize(13, 10n, 1n, 3_500_000n, 3n),
+            // Hour 11: C misses; the hour still prints from two submissions.
+            submit(20, 11n, CRE, 3_600_000n),
+            submit(21, 11n, PUB_B, 3_600_000n),
+            finalize(22, 11n, 1n, 3_600_000n, 2n),
+            // Hour 12: only the CRE submits, so the hour is missing: counted as submitted, but not scored.
+            submit(30, 12n, CRE, 3_550_000n),
+            finalize(31, 12n, 2n, 0n, 1n),
+            ev(32, "SeedCommitted", { feedId: FEED, periodId: 5n, publisher: CRE, hash: `0x${"ab".repeat(32)}`, revealAfter: 0n }),
+            ev(33, "SeedRevealed", { feedId: FEED, periodId: 4n, publisher: CRE, seed: `0x${"cd".repeat(32)}` }),
+          ],
+        },
+      },
+    });
+
+    t.expect((await indexer.OracleFeed.getOrThrow(FEED)).publishers).toEqual([CRE, PUB_B, PUB_C]);
+    t.expect(await indexer.PublisherStats.getOrThrow(`${FEED}_${CRE}`)).toMatchObject({
+      allowed: true,
+      hoursEligible: 3,
+      hoursSubmitted: 3,
+      hoursScored: 2,
+      deviationPpmSum: 2_000n,
+      maxDeviationPpm: 2_000,
+      seedsCommitted: 1,
+      seedsRevealed: 1,
+      lastSubmittedAt: T0 + 30,
+    });
+    t.expect(await indexer.PublisherStats.getOrThrow(`${FEED}_${PUB_B}`)).toMatchObject({ hoursEligible: 3, hoursSubmitted: 2, hoursScored: 2, deviationPpmSum: 0n });
+    t.expect(await indexer.PublisherStats.getOrThrow(`${FEED}_${PUB_C}`)).toMatchObject({
+      hoursEligible: 3,
+      hoursSubmitted: 1,
+      hoursScored: 1,
+      deviationPpmSum: 4_000n,
+      maxDeviationPpm: 4_000,
+      lastSubmittedAt: T0 + 12,
+    });
+    t.expect(await indexer.PublisherStats.getOrThrow(`${FEED}_${OLD}`)).toMatchObject({ allowed: false, hoursEligible: 0 });
+    t.expect(await indexer.Submission.getOrThrow(`${FEED}_10_${PUB_C}`)).toMatchObject({ price: 3_486_000n, deviationPpm: 4_000 });
+    t.expect((await indexer.Submission.getOrThrow(`${FEED}_12_${CRE}`)).deviationPpm).toBeUndefined();
+  });
 });
